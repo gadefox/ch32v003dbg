@@ -1,7 +1,40 @@
 #include <stdio.h>
 
+#include "flash.h"
 #include "options.h"
 #include "utils.h"
+
+//------------------------------------------------------------------------------
+
+bool boot_unlock(void) {
+  // Unlock BOOT area
+  if (!boot_set_keyr(UNLOCK_KEY1) || !boot_set_keyr(UNLOCK_KEY2))
+    return false;
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+
+bool optb_lock(void) {
+  flash_ctlr ctlr = flash_get_ctlr();
+  if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
+    return false;
+
+  CHECK(!flash_get_ctlr().b.OBWRE);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+
+bool optb_unlock(void) {
+  // Unlock option bytes
+  if (!optb_set_obkeyr(UNLOCK_KEY1) || !optb_set_obkeyr(UNLOCK_KEY2))
+    return false;
+
+  CHECK(flash_get_ctlr().b.OBWRE);
+  return true;
+}
 
 //------------------------------------------------------------------------------
 

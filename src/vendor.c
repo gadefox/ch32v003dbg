@@ -26,6 +26,9 @@ void vendor_dump(void) {
   uint32_t chipid = vendor_get_chipid();
   print_hex(0, "CHIPID", chipid);
 
+  uint16_t flacap = esig_get_flacap();
+  print_num(0, "FLACAP", flacap);
+
   print_b(0, "UNIID\n");
   uint32_t uniid1 = esig_get_uniid1();
   print_hex(2, "1", uniid1);
@@ -35,6 +38,14 @@ void vendor_dump(void) {
 
   uint32_t uniid3 = esig_get_uniid3();
   print_hex(2, "3", uniid3);
+  
+  uint32_t x;
+  x = ctx_get_mem_u32_aligned(0x1ffff7c4);
+  print_hex(1, "x", x);
+  x = ctx_get_mem_u32_aligned(0x1ffff3a8);
+  print_hex(1, "x2", x);
+  x = ctx_get_mem_u32_aligned(0x1ffff3ac);
+  print_hex(1, "x3", x);
 }
 
 //------------------------------------------------------------------------------

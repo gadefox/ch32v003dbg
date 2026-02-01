@@ -37,14 +37,6 @@ inline bool flash_set_keyr(uint32_t reg) {
   return ctx_set_mem_u32_aligned(FLASH_KEYR, reg); }
 
 //------------------------------------------------------------------------------
-// OBKEY register
-
-#define FLASH_OBKEYR  0x40022008
-
-inline bool flash_set_obkeyr(uint32_t reg) {
-  return ctx_set_mem_u32_aligned(FLASH_OBKEYR, reg); }
-
-//------------------------------------------------------------------------------
 // Status register
 
 #define FLASH_STATR  0x4002200C
@@ -191,24 +183,11 @@ inline uint32_t flash_get_wpr(void) {
 inline bool flash_set_mode_keyr(uint32_t reg) {
   return ctx_set_mem_u32_aligned(FLASH_MODEKEYR, reg); }
 
-//------------------------------------------------------------------------------
-// Unlock BOOT key register
-
-#define FLASH_BOOTKEYR  0x40022028
-
-inline bool flash_set_boot_keyr(uint32_t reg) {
-  return ctx_set_mem_u32_aligned(FLASH_BOOTKEYR, reg); }
-
-//------------------------------------------------------------------------------
-// Flash capacity register
-
-#define ESIG_FLACAP  0x1FFFF7E0
-
-inline uint16_t esig_get_flacap(void) {
-  return ctx_get_mem_u32_aligned(ESIG_FLACAP); }
-
 //==============================================================================
 // API
+
+#define UNLOCK_KEY1  0x45670123
+#define UNLOCK_KEY2  0xCDEF89AB
 
 #define CH32_FLASH_ADDR  0x08000000
 
@@ -224,16 +203,11 @@ inline uint16_t esig_get_flacap(void) {
 // Lock/unlock flash. Assume flash always starts locked.
 bool flash_is_locked(uint32_t set, uint32_t clear);
 
-bool flash_unlock_boot(void);
-
 bool flash_lock_fpec(void);
 bool flash_unlock_fpec(void);
 
 bool flash_lock_fast_prog(void);
 bool flash_unlock_fast_prog(void);
-
-bool flash_lock_options(void);
-bool flash_unlock_options(void);
 
 // Flash erase, addresses must be aligned
 bool flash_erase(uint32_t addr, uint32_t ctlr, uint32_t timeout_us);

@@ -9,25 +9,9 @@
 //==============================================================================
 // API
 
-#define UNLOCK_KEY1  0x45670123
-#define UNLOCK_KEY2  0xCDEF89AB
-
-//------------------------------------------------------------------------------
-
 bool flash_is_locked(uint32_t set, uint32_t unset) {
   flash_ctlr ctlr = flash_get_ctlr();
   return (ctlr.raw & set) && !(ctlr.raw & unset);
-}
-
-//------------------------------------------------------------------------------
-
-bool flash_unlock_boot(void) {
-  // Unlock BOOT area
-  if (!flash_set_boot_keyr(UNLOCK_KEY1) || !flash_set_boot_keyr(UNLOCK_KEY2))
-    return false;
-
-  CHECK(!flash_get_ctlr().b.LOCK);
-  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -73,29 +57,6 @@ bool flash_unlock_fast_prog(void) {
   CHECK(!flash_get_ctlr().b.FLOCK);
   return true;
 }
-
-//------------------------------------------------------------------------------
-
-bool flash_lock_options(void) {
-  flash_ctlr ctlr = flash_get_ctlr();
-  if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
-    return false;
-
-  CHECK(!flash_get_ctlr().b.OBWRE);
-  return true;
-}
-
-//------------------------------------------------------------------------------
-
-bool flash_unlock_options(void) {
-  // Unlock option bytes
-  if (!flash_set_obkeyr(UNLOCK_KEY1) || !flash_set_obkeyr(UNLOCK_KEY2))
-    return false;
-
-  CHECK(flash_get_ctlr().b.OBWRE);
-  return true;
-}
-
 
 //------------------------------------------------------------------------------
 // NOTE: Flash erase timing (measured): 1 page ≈ 3.3 ms
@@ -312,9 +273,6 @@ static void flash_dump_data(uint32_t addr) {
 
 void flash_dump(uint32_t addr) {
   flash_dump_data(addr);
-
-  uint16_t flacap = esig_get_flacap();
-  print_num(0, "ESIG_FLACAP", flacap);
 
   flash_actlr actlr = flash_get_actlr();
   flash_actlr_dump(actlr);

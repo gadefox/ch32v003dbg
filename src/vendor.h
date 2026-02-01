@@ -26,6 +26,14 @@ inline uint32_t vendor_get_chipid(void) {
 // Electronic Signature
 
 //------------------------------------------------------------------------------
+// Flash capacity register
+
+#define ESIG_FLACAP  0x1FFFF7E0
+
+inline uint16_t esig_get_flacap(void) {
+  return ctx_get_mem_u32_aligned(ESIG_FLACAP); }
+
+//------------------------------------------------------------------------------
 // UID registers
 
 #define ESIG_UNIID_ADDR  0x1FFFF7E8

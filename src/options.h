@@ -5,6 +5,11 @@
 //==============================================================================
 // API
 
+bool boot_unlock(void);
+
+bool optb_lock(void);
+bool optb_unlock(void);
+
 // Debug dump
 void optb_dump(void);
 
@@ -119,5 +124,21 @@ inline optb_wrpr2 optb_get_wrpr2(void) {
   wrpr2.raw = ctx_get_mem_u32_aligned(OPTB_WRPR2);
   return wrpr2;
 }
+
+//------------------------------------------------------------------------------
+// OBKEY register
+
+#define OPTB_OBKEYR  0x40022008
+
+inline bool optb_set_obkeyr(uint32_t reg) {
+  return ctx_set_mem_u32_aligned(OPTB_OBKEYR, reg); }
+
+//------------------------------------------------------------------------------
+// Unlock BOOT key register
+
+#define BOOT_KEYR  0x40022028
+
+inline bool boot_set_keyr(uint32_t reg) {
+  return ctx_set_mem_u32_aligned(BOOT_KEYR, reg); }
 
 //------------------------------------------------------------------------------

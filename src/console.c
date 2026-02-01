@@ -244,7 +244,7 @@ void console_flash_erase(void) {
 void console_flash_lock(void) {
   print_y(0, "flash:lock\n");
 
-  bool status = flash_lock_options();
+  bool status = optb_lock();
   printf("  options:");
   console_print_status(status);
 
@@ -270,11 +270,11 @@ void console_flash_unlock(void) {
   printf("  fast prog:");
   console_print_status(status);
 
-  status = flash_unlock_options();
+  status = optb_unlock();
   printf("  options:");
   console_print_status(status);
 
-  status = flash_unlock_boot();
+  status = boot_unlock();
   printf("  boot:");
   console_print_status(status);
 }
