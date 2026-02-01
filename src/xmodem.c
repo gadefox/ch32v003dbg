@@ -28,6 +28,8 @@ typedef enum {
 
 //------------------------------------------------------------------------------
 
+bool xmodem_mode;
+
 // XMODEM protocol state
 static xm_state state;         // Current XMODEM FSM state
 
@@ -224,7 +226,7 @@ static int xmodem_start(bool byte_ie, uint8_t byte_in) {
   // Configure DMA transfer length
   dma_channel_set_trans_count(dma_chan, data_size, false);
 
-  dst_addr = CH32_FLASH_BASE_ADDR;
+  dst_addr = CH32_FLASH_ADDR;
   blk_cur = 0;
   return 0;
 }

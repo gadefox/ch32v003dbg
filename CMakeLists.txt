@@ -9,8 +9,8 @@ add_compile_definitions(PICO_DEFAULT_WS2812_PIN=23)
 pico_sdk_init()
 
 add_executable(ch32v003dbg src/break.c src/console.c src/context.c src/flash.c
-  src/main.c src/packet.c src/reg.c src/server.c src/swio.c src/tusb_config.c
-  src/utils.c src/xmodem.c)
+  src/main.c src/options.c src/packet.c src/server.c src/swio.c src/xmodem.c
+  src/tusb_config.c src/utils.c)
 
 target_include_directories(ch32v003dbg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
   # This directory is required so that TinyUSB can find src/tusb_config.h

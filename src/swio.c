@@ -4,7 +4,7 @@
 
 #include "out/singlewire.pio.h"
 #include "break.h"
-#include "reg.h"
+#include "swio.h"
 #include "utils.h"
 
 //------------------------------------------------------------------------------
@@ -165,6 +165,157 @@ void swio_dump(void) {
 
   uint32_t part = dm_get_part();
   dm_print(DM_PART, part);
+}
+
+//==============================================================================
+// Debug interface registers
+
+void dm_print(uint8_t reg, uint32_t raw) {
+  const char* name = dm_to_name(reg);
+  print_hex(0, name, raw);
+}
+
+//------------------------------------------------------------------------------
+
+const char* dm_to_name(uint8_t reg) {
+  switch (reg) {
+    case DM_DATA0:
+      return "DM_DATA0";
+    case DM_DATA1:
+      return "DM_DATA1";
+    case DM_CONTROL:
+      return "DM_CONTROL";
+    case DM_STATUS:
+      return "DM_STATUS";
+    case DM_HARTINFO:
+      return "DM_HARTINFO";
+    case DM_ABSTRACTCS:
+      return "DM_ABSTRACTCS";
+    case DM_COMMAND:
+      return "DM_COMMAND";
+    case DM_ABSTRACTAUTO:
+      return "DM_ABSTRACTAUTO";
+    case DM_PROGBUF0:
+      return "DM_PROGBUF0";
+    case DM_PROGBUF1:
+      return "DM_PROGBUF1";
+    case DM_PROGBUF2:
+      return "DM_PROGBUF2";
+    case DM_PROGBUF3:
+      return "DM_PROGBUF3";
+    case DM_PROGBUF4:
+      return "DM_PROGBUF4";
+    case DM_PROGBUF5:
+      return "DM_PROGBUF5";
+    case DM_PROGBUF6:
+      return "DM_PROGBUF6";
+    case DM_PROGBUF7:
+      return "DM_PROGBUF7";
+    case DM_HALTSUM0:
+      return "DM_HALTSUM0";
+    case DM_CPBR:
+      return "DM_CPBR";
+    case DM_CFGR:
+      return "DM_CFGR";
+    case DM_SHDWCFGR:
+      return "DM_SHDWCFGR";
+    case DM_PART:
+      return "DM_PART";
+    default:
+      return "DM_?";
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void dm_control_dump(dm_control r) {
+  dm_print(DM_CONTROL, r.raw);
+  printf("  ACKHAVERESET:%d  ACKUNAVAIL:%d  CLRKEEPALIVE:%d  CLRRESETHALTREQ:%d  DMACTIVE:%d\n",
+         r.b.ACKHAVERESET, r.b.ACKUNAVAIL, r.b.CLRKEEPALIVE, r.b.CLRRESETHALTREQ, r.b.DMACTIVE);
+  printf("  HASEL:%d  HALTREQ:%d  HARTRESET:%d  HARTSELHI:%d  HARTSELLO:%d\n",
+         r.b.HASEL, r.b.HALTREQ, r.b.HARTRESET, r.b.HARTSELHI, r.b.HARTSELLO);
+  printf("  NDMRESET:%d  RESUMEREQ:%d  SETKEEPALIVE:%d  SETRESETHALTREQ:%d\n",
+         r.b.NDMRESET, r.b.RESUMEREQ, r.b.SETKEEPALIVE, r.b.SETRESETHALTREQ);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_status_dump(dm_status r) {
+  dm_print(DM_STATUS, r.raw);
+  printf("  ANYAVAIL:%d  ANYHALTED:%d  ANYHAVERESET:%d  ANYRESUMEACK:%d  ANYRUNNING:%d\n",
+         r.b.ANYAVAIL, r.b.ANYHALTED, r.b.ANYHAVERESET, r.b.ANYRESUMEACK, r.b.ANYRUNNING);
+  printf("  ALLAVAIL:%d  ALLHALTED:%d  ALLHAVERESET:%d  ALLRESUMEACK:%d  ALLRUNNING:%d\n",
+         r.b.ALLAVAIL, r.b.ALLHALTED, r.b.ALLHAVERESET, r.b.ALLRESUMEACK, r.b.ALLRUNNING);
+  printf("  AUTHENTICATED:%d  VERSION:%d\n", r.b.AUTHENTICATED, r.b.VERSION);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_hartinfo_dump(dm_hartinfo r) {
+  dm_print(DM_HARTINFO, r.raw);
+  printf("  DATAACCESS:%d  DATAADDR:%03X  DATASIZE:%d  NSCRATCH:%d\n",
+         r.b.DATAACCESS, r.b.DATAADDR, r.b.DATASIZE, r.b.NSCRATCH);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_abstractcs_dump(dm_abstractcs r) {
+  dm_print(DM_ABSTRACTCS, r.raw);
+  printf("  BUSY:%d  CMDER:%d  DATACOUNT:%d  PROGBUFSIZE:%d\n",
+         r.b.BUSY, r.b.CMDER, r.b.DATACOUNT, r.b.PROGBUFSIZE);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_command_dump(dm_command r) {
+  dm_print(DM_COMMAND, r.raw);
+  printf("  AARPOSTINC:%d  AARSIZE:%d  POSTEXEC:%d  REGNO:%04X  TRANSFER:%d  WRITE:%d\n",
+         r.b.AARPOSTINC, r.b.AARSIZE, r.b.POSTEXEC, r.b.REGNO, r.b.TRANSFER, r.b.WRITE);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_abstractauto_dump(dm_abstractauto r) {
+  dm_print(DM_ABSTRACTAUTO, r.raw);
+  printf("  AUTOEXECDATA:%d  AUTOEXECPROG:%d\n",
+         r.b.AUTOEXECDATA, r.b.AUTOEXECPROG);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_progbuf_dump(void) {
+  print_b(0, "DM_PROGBUF\n");
+  for (int i = 0; i < DM_PROGBUF_MAX; i++) {
+    uint32_t progbuf = dm_get_progbuf(i);
+    printf("  %d: %08X", i, progbuf);
+
+    if ((i & 3) == 3)
+      putchar('\n');
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void dm_cpbr_dump(dm_cpbr r) {
+  dm_print(DM_CPBR, r.raw);
+  printf("  CHECKSTA:%d  CMDEXTENSTA:%d  IOMODE:%d  OUTSTA:%d  SOPN:%d  TDIV:%d  VERSION:%d\n",
+         r.b.CHECKSTA, r.b.CMDEXTENSTA, r.b.IOMODE, r.b.OUTSTA, r.b.SOPN, r.b.TDIV, r.b.VERSION);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_cfgr_dump(dm_cfgr r) {
+  dm_print(DM_CFGR, r.raw);
+  printf("  CHECKEN:%d  CMDEXTEN:%d  IOMODECFG:%d  KEY:%04X  OUTEN:%d  SOPNCFG:%d  TDIVCFG:%d\n",
+         r.b.CHECKEN, r.b.CMDEXTEN, r.b.IOMODECFG, r.b.KEY, r.b.OUTEN, r.b.SOPNCFG, r.b.TDIVCFG);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_shdwcfgr_dump(dm_shdwcfgr r) {
+  dm_print(DM_SHDWCFGR, r.raw);
+  printf("  CHECKEN:%d  CMDEXTEN:%d  IOMODECFG:%d  KEY:%04X  OUTEN:%d  SOPNCFG:%d  TDIVCFG:%d\n",
+         r.b.CHECKEN, r.b.CMDEXTEN, r.b.IOMODECFG, r.b.KEY, r.b.OUTEN, r.b.SOPNCFG, r.b.TDIVCFG);
 }
 
 //------------------------------------------------------------------------------

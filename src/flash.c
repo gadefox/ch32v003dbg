@@ -3,9 +3,11 @@
 #include <pico/time.h>
 
 #include "flash.h"
+#include "swio.h"
 #include "utils.h"
 
-//------------------------------------------------------------------------------
+//==============================================================================
+// API
 
 #define UNLOCK_KEY1  0x45670123
 #define UNLOCK_KEY2  0xCDEF89AB
@@ -285,7 +287,7 @@ static void flash_dump_data(uint32_t addr) {
     return;
   }
 
-  ctx_get_block_aligned(addr + CH32_FLASH_BASE_ADDR, data, countof(data));
+  ctx_get_block_aligned(addr + CH32_FLASH_ADDR, data, countof(data));
   print_hex(0, "addr", addr);
 
   for (uint32_t i = 0; i < countof(data); i++) {
@@ -303,15 +305,6 @@ void flash_dump(uint32_t addr) {
   uint16_t flacap = esig_get_flacap();
   print_num(0, "ESIG_FLACAP", flacap);
 
-  flash_wrpr wrpr = flash_get_wrpr();
-  flash_wrpr_dump(wrpr);
-
-  flash_optb optb = flash_get_optb();
-  flash_optb_dump(optb);
-
-  flash_udata udata = flash_get_udata();
-  flash_udata_dump(udata);
-
   flash_actlr actlr = flash_get_actlr();
   flash_actlr_dump(actlr);
 
@@ -326,7 +319,44 @@ void flash_dump(uint32_t addr) {
 
   uint32_t wpr = flash_get_wpr();
   print_hex(0, "FLASH_WPR", wpr);
+}
 
+//==============================================================================
+// Flash registers (memory-mapped I/O)
+
+void flash_actlr_dump(flash_actlr r) {
+  print_b(0, "ACTLR\n");
+  printf("  %08X\n", r.raw);
+  printf("  LATENCY:%d\n", r.b.LATENCY);
+}
+
+//------------------------------------------------------------------------------
+
+void flash_statr_dump(flash_statr r) {
+  print_b(0, "STATR\n");
+  printf("  %08X\n", r.raw);
+  printf("  BOOT_LOCK:%d  BUSY:%d  EOP:%d  MODE:%d  WRPRTERR:%d\n",
+         r.b.BOOT_LOCK, r.b.BUSY, r.b.EOP, r.b.MODE, r.b.WRPRTERR);
+}
+
+//------------------------------------------------------------------------------
+
+void flash_ctlr_dump(flash_ctlr r) {
+  print_b(0, "CTLR\n");
+  printf("  %08X\n", r.raw);
+  printf("  BUFLOAD:%d  BUFRST:%d  ERRIE:%d  EOPIE:%d  FLOCK:%d  FTER:%d  FTPG:%d\n",
+         r.b.BUFLOAD, r.b.BUFRST, r.b.ERRIE, r.b.EOPIE, r.b.FLOCK, r.b.FTER, r.b.FTPG);
+  printf("  LOCK:%d  MER:%d  OBER:%d  OBG:%d  OBWRE:%d  PER:%d  PG:%d  STRT:%d\n",
+         r.b.LOCK, r.b.MER, r.b.OBER, r.b.OBG, r.b.OBWRE, r.b.PER, r.b.PG, r.b.STRT);
+}
+
+//------------------------------------------------------------------------------
+
+void flash_obr_dump(flash_obr r) {
+  print_b(0, "OBR\n");
+  printf("  %08X\n", r.raw);
+  printf("  CFGRSTT:%d  DATA0:%d  DATA1:%d  IWDG_SW:%d  OBERR:%d  RDPRT:%d  STANDBY_RST:%d\n",
+         r.b.CFGRSTT, r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR, r.b.RDPRT, r.b.STANDBY_RST);
 }
 
 //------------------------------------------------------------------------------

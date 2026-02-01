@@ -5,6 +5,10 @@
 
 //------------------------------------------------------------------------------
 
+extern bool xmodem_mode;
+
+//------------------------------------------------------------------------------
+
 void xmodem_init(void);
 bool xmodem_update(bool connected, bool byte_ie, uint8_t byte_in, uint8_t* byte_out);
 

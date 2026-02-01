@@ -6,6 +6,7 @@
 #include "flash.h"
 #include "packet.h"
 #include "server.h"
+#include "swio.h"
 
 //------------------------------------------------------------------------------
 
@@ -610,10 +611,10 @@ void server_flash_erase(uint32_t addr, uint32_t size) {
 
   flash_unlock_fpec();
   flash_unlock_fast_prog();
-  addr += CH32_FLASH_BASE_ADDR;
+  addr += CH32_FLASH_ADDR;
 
   while (size) {
-    if (addr == CH32_FLASH_BASE_ADDR && size == CH32_FLASH_SIZE) {
+    if (addr == CH32_FLASH_ADDR && size == CH32_FLASH_SIZE) {
       LOG("erase chip %08X\n", addr);
       flash_erase_chip();
       server_set_resp("OK", 2);

@@ -3,13 +3,10 @@
 #include <pico/time.h>
 
 #include "context.h"
-#include "reg.h"
+#include "swio.h"
 
-//------------------------------------------------------------------------------
-
-bool xmodem_mode;
-
-//------------------------------------------------------------------------------
+//==============================================================================
+// API
 
 static uint32_t prog_clobber; // Bits are 1 if running the current program will clober the reg
 static uint32_t prog_size;
@@ -785,6 +782,36 @@ void ctx_dump(void) {
 
   uint32_t dscratch1 = csr_get_dscratch1();
   print_hex(0, "CSR_DSCRATCH1", dscratch1);
+}
+
+//==============================================================================
+// Debug-specific CSRs
+
+void csr_dcsr_dump(csr_dcsr r) {
+  print_b(0, "DCSR\n");
+  printf("  %08X\n", r.raw);
+  printf("  CAUSE:%d  EBREAKM:%d  EBREAKS:%d  EBREAKU:%d  MPRVEN:%d  NMIP:%d\n",
+         r.b.CAUSE, r.b.EBREAKM, r.b.EBREAKS, r.b.EBREAKU, r.b.MPRVEN, r.b.NMIP);
+  printf("  PRV:%d  STEP:%d  STEPIE:%d  STOPCOUNT:%d  STOPTIME:%d  XDEBUGVER:%d\n",
+         r.b.PRV, r.b.STEP, r.b.STEPIE, r.b.STOPCOUNT, r.b.STOPTIME, r.b.XDEBUGVER);
+}
+
+//==============================================================================
+// Electronic Signature
+
+void esig_dump(uint32_t mask) {
+  if (mask & UNIID1) {
+    uint32_t uniid1 = esig_get_uniid1();
+    print_hex(2, "1", uniid1);
+  }
+  if (mask & UNIID2) {
+    uint32_t uniid2 = esig_get_uniid2();
+    print_hex(2, "2", uniid2);
+  }
+  if (mask & UNIID3) {
+    uint32_t uniid3 = esig_get_uniid3();
+    print_hex(2, "3", uniid3);
+  }
 }
 
 //------------------------------------------------------------------------------

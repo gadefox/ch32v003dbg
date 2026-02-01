@@ -6,7 +6,9 @@
 #include "context.h"
 #include "break.h"
 #include "flash.h"
+#include "options.h"
 #include "packet.h"
+#include "swio.h"
 
 //------------------------------------------------------------------------------
 
@@ -396,11 +398,12 @@ void console_help(void) {
 // Info handlers
 
 const handler info_handlers[] = {
-  { "break", "br", NULL,   break_dump },
-  { "core",  "co", NULL,   ctx_dump },
-  { "flash", "fl", "addr", console_info_flash },
-  { "id",    NULL, "idx",  console_info_id },
-  { "swio",  "sw", NULL,   swio_dump }
+  { "break",   "br", NULL,   break_dump },
+  { "core",    "co", NULL,   ctx_dump },
+  { "flash",   "fl", "addr", console_info_flash },
+  { "id",      NULL, "idx",  console_info_id },
+  { "options", "op", NULL,   optb_dump },
+  { "swio",    "sw", NULL,   swio_dump }
 };
 
 //------------------------------------------------------------------------------
