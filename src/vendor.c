@@ -1,33 +1,15 @@
+#include <stdio.h>
+
 #include "vendor.h"
 
 //==============================================================================
 // API
 
-const char* variant_to_text(uint8_t var) {
-  switch (var) {
-    case VC_TSSOP20:
-      return "TSSOP20";
-    case VC_QFN20:
-      return "QFN20";
-    case VC_SOP16:
-      return "SOP16";
-    case VC_SOP8:
-      return "SOP8";
-    default:
-      return "?";
-  }
-}
-
-//------------------------------------------------------------------------------
-
 void vendor_dump(void) {
   print_y(0, "vendor:dump\n");
 
-  uint32_t chipid = vendor_get_chipid();
-  print_hex(0, "CHIPID", chipid);
-
-  uint16_t flacap = esig_get_flacap();
-  print_num(0, "FLACAP", flacap);
+  vnd_chipid chipid = vnd_get_chipid();
+  vnd_chipid_dump(chipid);
 
   print_b(0, "UNIID\n");
   uint32_t uniid1 = esig_get_uniid1();
@@ -38,14 +20,40 @@ void vendor_dump(void) {
 
   uint32_t uniid3 = esig_get_uniid3();
   print_hex(2, "3", uniid3);
-  
-  uint32_t x;
-  x = ctx_get_mem_u32_aligned(0x1ffff7c4);
-  print_hex(1, "x", x);
-  x = ctx_get_mem_u32_aligned(0x1ffff3a8);
-  print_hex(1, "x2", x);
-  x = ctx_get_mem_u32_aligned(0x1ffff3ac);
-  print_hex(1, "x3", x);
+
+  uint16_t flacap = esig_get_flacap();
+  print_num(0, "FLACAP", flacap);
+}
+
+//==============================================================================
+// Vendor bytes areas
+
+const char* package_to_text(package p) {
+  switch (p) {
+    case TSSOP20:
+      return "TSSOP20";
+    case QFN20:
+      return "QFN20";
+    case SOP16:
+      return "SOP16";
+    case SOP8:
+      return "SOP8";
+    default:
+      return "?";
+  }
+}
+
+//------------------------------------------------------------------------------
+
+void vnd_chipid_dump(vnd_chipid r) {
+  print_hex(0, "CHIPID", r.raw);
+
+  const char* package = package_to_text(r.b.PACKAGE);
+  print_str(2, "package", package);
+
+  print_num(2, "sectors", r.b.SECTORS);
+
+  printf("  VAL0:%X  VAL1:%X  VAL2:%03X\n", r.b.VAL0, r.b.VAL1, r.b.VAL2);
 }
 
 //------------------------------------------------------------------------------

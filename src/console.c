@@ -155,6 +155,39 @@ static void console_dump_handlers(const handler* handlers, uint32_t count, const
 }
 
 //==============================================================================
+// Bootloader handlers
+
+void console_boot_unlock(void) {
+  print_y(0, "boot: unlock\n");
+
+  bool status = boot_unlock();
+  console_print_status(status);
+}
+
+//------------------------------------------------------------------------------
+
+const handler boot_handlers[] = {
+  { "pico",   "pi", NULL, console_ctx_boot },
+  { "unlock", "un", NULL, console_boot_unlock }
+};
+
+//------------------------------------------------------------------------------
+
+void console_boot_help(void) {
+  console_dump_handlers(boot_handlers, countof(boot_handlers), "boot:\n");
+}
+
+//------------------------------------------------------------------------------
+
+void console_boot_parse(void) {
+  void* handler = handler_find(boot_handlers, countof(boot_handlers));
+  if (!handler)
+    console_boot_help();
+  else
+    handler_jump(handler);
+}
+
+//==============================================================================
 // Breakpoint handlers
 
 void console_break_halt(void) {
@@ -244,11 +277,7 @@ void console_flash_erase(void) {
 void console_flash_lock(void) {
   print_y(0, "flash:lock\n");
 
-  bool status = optb_lock();
-  printf("  options:");
-  console_print_status(status);
-
-  status = flash_lock_fast_prog();
+  bool status = flash_lock_fast_prog();
   printf("  fast prog:");
   console_print_status(status);
 
@@ -268,14 +297,6 @@ void console_flash_unlock(void) {
 
   status = flash_unlock_fast_prog();
   printf("  fast prog:");
-  console_print_status(status);
-
-  status = optb_unlock();
-  printf("  options:");
-  console_print_status(status);
-
-  status = boot_unlock();
-  printf("  boot:");
   console_print_status(status);
 }
 
@@ -347,7 +368,6 @@ void console_ctx_boot(void) {
 //------------------------------------------------------------------------------
 
 const handler ctx_handlers[] = {
-  { "boot",     NULL, NULL, console_ctx_boot },
 #if LOGS
   { "test",     NULL, NULL, ctx_test },
 #endif
@@ -377,10 +397,12 @@ void console_ctx_parse(void) {
 // Help handlers
 
 const handler help_handlers[] = {
-  { "break", "br", NULL, console_break_help },
-  { "core",  "co", NULL, console_ctx_help },
-  { "flash", "fl", NULL, console_flash_help },
-  { "info",  "i",  NULL, console_info_help }
+  { "boot",    "bo", NULL, console_boot_help },
+  { "break",   "br", NULL, console_break_help },
+  { "core",    "co", NULL, console_ctx_help },
+  { "flash",   "fl", NULL, console_flash_help },
+  { "info",    "i",  NULL, console_info_help },
+  { "options", "op", NULL, console_optb_help }
 };
 
 //------------------------------------------------------------------------------
@@ -443,14 +465,57 @@ void console_info_help(void) {
 }
 
 //==============================================================================
+// Options handlers
+
+void console_optb_lock(void) {
+  print_y(0, "options: lock\n");
+
+  bool status = optb_lock();
+  console_print_status(status);
+}
+
+void console_optb_unlock(void) {
+  print_y(0, "options: unlock\n");
+
+  bool status = optb_unlock();
+  console_print_status(status);
+}
+
+//------------------------------------------------------------------------------
+
+const handler optb_handlers[] = {
+  { "lock",   "lo", NULL, console_optb_lock },
+  { "unlock", "un", NULL, console_optb_unlock }
+};
+
+//------------------------------------------------------------------------------
+
+void console_optb_help(void) {
+  console_dump_handlers(optb_handlers, countof(optb_handlers), "options:\n");
+}
+
+//------------------------------------------------------------------------------
+
+void console_optb_parse(void) {
+  void* handler = handler_find(optb_handlers, countof(optb_handlers));
+  if (!handler)
+    console_optb_help();
+  else
+    handler_jump(handler);
+}
+
+
+//==============================================================================
 // Console handlers
 
 const handler console_handlers[] = {
-  { "help",  "h",  NULL, console_help_parse },
-  { "break", "br", NULL, console_break_parse },
-  { "core",  "co", NULL, console_ctx_parse },
-  { "flash", "fl", NULL, console_flash_parse },
-  { "info",  "i",  NULL, console_info_parse }
+  { "help",    "h",  NULL, console_help_parse },
+  { "boot",    "bo", NULL, console_boot_parse },
+  { "break",   "br", NULL, console_break_parse },
+  { "core",    "co", NULL, console_ctx_parse },
+  { "flash",   "fl", NULL, console_flash_parse },
+  { "info",    "i",  NULL, console_info_parse },
+  { "options", "op", NULL, console_optb_parse }
 };
 
 //------------------------------------------------------------------------------

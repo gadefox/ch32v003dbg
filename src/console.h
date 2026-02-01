@@ -11,6 +11,14 @@ void console_print_dpc(bool result);
 void console_print_result(bool result);
 
 //------------------------------------------------------------------------------
+// Bootloader handlers
+
+void console_boot_help(void);
+void console_boot_parse(void);
+
+void console_boot_unlock(void);
+
+//------------------------------------------------------------------------------
 // Breakpoint handlers
 
 void console_break_help(void);
@@ -61,5 +69,14 @@ void console_info_help(void);
 void console_info_parse(void);
 
 void console_info_flash(void);
+
+//------------------------------------------------------------------------------
+// Options handlers
+
+void console_optb_help(void);
+void console_optb_parse(void);
+
+void console_optb_lock(void);
+void console_optb_unlock(void);
 
 //------------------------------------------------------------------------------

@@ -5,22 +5,41 @@
 //==============================================================================
 // API
 
-#define VC_TSSOP20  0x30
-#define VC_QFN20    0x31
-#define VC_SOP16    0x32
-#define VC_SOP8     0x33
-
-const char* variant_to_text(uint8_t var);
-
 void vendor_dump(void);
 
 //==============================================================================
 // Vendor bytes areas
 
-#define VEND_CHIP_ID  0x1FFFF7C4
+typedef enum {
+  TSSOP20,  // 0
+  QFN20,    // 1
+  SOP16,    // 2
+  SOP8,     // 3
+} package;
 
-inline uint32_t vendor_get_chipid(void) {
-  return ctx_get_mem_u32_aligned(VEND_CHIP_ID); }
+const char* package_to_text(package p);
+
+//------------------------------------------------------------------------------
+
+#define VND_CHIPID  0x1FFFF7C4
+
+typedef union {
+  uint32_t raw;
+  struct {
+    uint32_t SECTORS : 8;  //  8;  Flash capacity?
+    uint32_t VAL0    : 4;  // 12; =5
+    uint32_t VAL1    : 4;  // 16; =0
+    uint32_t PACKAGE : 4;  // 20; Chip package type
+    uint32_t VAL2    : 12; // 32; =003
+  } b;
+} vnd_chipid;
+
+void vnd_chipid_dump(vnd_chipid r);
+inline vnd_chipid vnd_get_chipid(void) {
+  vnd_chipid chipid;
+  chipid.raw = ctx_get_mem_u32_aligned(VND_CHIPID);
+  return chipid;
+}
 
 //==============================================================================
 // Electronic Signature

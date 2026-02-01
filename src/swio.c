@@ -164,8 +164,8 @@ void swio_dump(void) {
   dm_shdwcfgr shwdcfgr = dm_get_shdwcfgr();
   dm_shdwcfgr_dump(shwdcfgr);
 
-  dm_chipid chipid = dm_get_chipid();
-  dm_chipid_dump(chipid);
+  uint32_t chipid = dm_get_chipid();
+  dm_print(DM_CHIPID, chipid);
 }
 
 //==============================================================================
@@ -317,15 +317,6 @@ void dm_shdwcfgr_dump(dm_shdwcfgr r) {
   dm_print(DM_SHDWCFGR, r.raw);
   printf("  CHECKEN:%d  CMDEXTEN:%d  IOMODECFG:%d  KEY:%04X  OUTEN:%d  SOPNCFG:%d  TDIVCFG:%d\n",
          r.b.CHECKEN, r.b.CMDEXTEN, r.b.IOMODECFG, r.b.KEY, r.b.OUTEN, r.b.SOPNCFG, r.b.TDIVCFG);
-}
-
-//------------------------------------------------------------------------------
-
-void dm_chipid_dump(dm_chipid r) {
-  dm_print(DM_CHIPID, r.raw);
-
-  const char* variant = variant_to_text(r.b.VARIANT);
-  print_str(2, "variant", variant);
 }
 
 //------------------------------------------------------------------------------

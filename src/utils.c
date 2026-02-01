@@ -74,7 +74,7 @@ void print_bits(uint8_t spaces, const char* name, uint32_t value) {
 
 void print_str(uint8_t spaces, const char* name, const char* text) {
   print_b(spaces, name);
-  printf("%s\n", text);
+  printf(": %s\n", text);
 }
 
 //==============================================================================
