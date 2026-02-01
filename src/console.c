@@ -9,6 +9,7 @@
 #include "options.h"
 #include "packet.h"
 #include "swio.h"
+#include "vendor.h"
 
 //------------------------------------------------------------------------------
 
@@ -243,8 +244,8 @@ void console_flash_erase(void) {
 void console_flash_lock(void) {
   print_y(0, "flash:lock\n");
 
-  bool status = flash_lock_option_bytes();
-  printf("  option bytes:");
+  bool status = flash_lock_options();
+  printf("  options:");
   console_print_status(status);
 
   status = flash_lock_fast_prog();
@@ -269,8 +270,12 @@ void console_flash_unlock(void) {
   printf("  fast prog:");
   console_print_status(status);
 
-  status = flash_unlock_option_bytes();
-  printf("  option bytes:");
+  status = flash_unlock_options();
+  printf("  options:");
+  console_print_status(status);
+
+  status = flash_unlock_boot();
+  printf("  boot:");
   console_print_status(status);
 }
 
@@ -401,9 +406,9 @@ const handler info_handlers[] = {
   { "break",   "br", NULL,   break_dump },
   { "core",    "co", NULL,   ctx_dump },
   { "flash",   "fl", "addr", console_info_flash },
-  { "id",      NULL, "idx",  console_info_id },
   { "options", "op", NULL,   optb_dump },
-  { "swio",    "sw", NULL,   swio_dump }
+  { "swio",    "sw", NULL,   swio_dump },
+  { "vendor",  "ve", NULL,   vendor_dump }
 };
 
 //------------------------------------------------------------------------------
@@ -419,34 +424,6 @@ void console_info_flash(void) {
   }
 
   flash_dump(addr);
-}
-
-//------------------------------------------------------------------------------
-
-void console_info_id(void) {
-  print_b(0, "UNIID\n");
-
-  uint8_t* arg = packet_ptr(&pkt);
-
-  // Convert index to bitmask
-  int32_t idx = packet_parse_num(0);
-  if (idx == 0)
-    idx = UNIID1 | UNIID2 | UNIID3;
-  else if (idx == 1)
-    idx = UNIID1;
-  else if (idx == 2)
-    idx = UNIID2;
-  else if (idx == 3)
-    idx = UNIID3;
-  else
-    pkt.error = true;
-
-  if (pkt.error) {
-    print_r(2, "bad index:%s\n", arg);
-    return;
-  }
-
-  esig_dump(idx);
 }
 
 //------------------------------------------------------------------------------

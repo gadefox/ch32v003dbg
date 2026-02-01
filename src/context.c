@@ -796,22 +796,4 @@ void csr_dcsr_dump(csr_dcsr r) {
          r.b.PRV, r.b.STEP, r.b.STEPIE, r.b.STOPCOUNT, r.b.STOPTIME, r.b.XDEBUGVER);
 }
 
-//==============================================================================
-// Electronic Signature
-
-void esig_dump(uint32_t mask) {
-  if (mask & UNIID1) {
-    uint32_t uniid1 = esig_get_uniid1();
-    print_hex(2, "1", uniid1);
-  }
-  if (mask & UNIID2) {
-    uint32_t uniid2 = esig_get_uniid2();
-    print_hex(2, "2", uniid2);
-  }
-  if (mask & UNIID3) {
-    uint32_t uniid3 = esig_get_uniid3();
-    print_hex(2, "3", uniid3);
-  }
-}
-
 //------------------------------------------------------------------------------

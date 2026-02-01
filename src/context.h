@@ -203,28 +203,4 @@ inline void gpr_set_a4(uint32_t reg) { ctx_set_gpr(GPR_A4, reg); }
 inline uint32_t gpr_get_a5(void) { return ctx_get_gpr(GPR_A5); }
 inline void gpr_set_a5(uint32_t reg) { ctx_set_gpr(GPR_A5, reg); }
 
-//==============================================================================
-// Electronic Signature
-
-#define UNIID1  (1 << 0)
-#define UNIID2  (1 << 1)
-#define UNIID3  (1 << 2)
-
-void esig_dump(uint32_t mask);
-
-//------------------------------------------------------------------------------
-// UID registers
-
-#define ESIG_UNIID_ADDR  0x1FFFF7E8
-#define ESIG_UNIID1      (ESIG_UNIID_ADDR + 0x00)
-#define ESIG_UNIID2      (ESIG_UNIID_ADDR + 0x04)
-#define ESIG_UNIID3      (ESIG_UNIID_ADDR + 0x08)
-
-inline uint32_t esig_get_uniid1(void) {
-  return ctx_get_mem_u32_aligned(ESIG_UNIID1); }
-inline uint32_t esig_get_uniid2(void) {
-  return ctx_get_mem_u32_aligned(ESIG_UNIID2); }
-inline uint32_t esig_get_uniid3(void) {
-  return ctx_get_mem_u32_aligned(ESIG_UNIID3); }
-
 //------------------------------------------------------------------------------

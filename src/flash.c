@@ -21,6 +21,17 @@ bool flash_is_locked(uint32_t set, uint32_t unset) {
 
 //------------------------------------------------------------------------------
 
+bool flash_unlock_boot(void) {
+  // Unlock BOOT area
+  if (!flash_set_boot_keyr(UNLOCK_KEY1) || !flash_set_boot_keyr(UNLOCK_KEY2))
+    return false;
+
+  CHECK(!flash_get_ctlr().b.LOCK);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+
 bool flash_lock_fpec(void) {
   flash_ctlr ctlr = flash_get_ctlr();
   if (!flash_set_ctlr(ctlr.raw | CTLR_LOCK))
@@ -65,7 +76,7 @@ bool flash_unlock_fast_prog(void) {
 
 //------------------------------------------------------------------------------
 
-bool flash_lock_option_bytes(void) {
+bool flash_lock_options(void) {
   flash_ctlr ctlr = flash_get_ctlr();
   if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
     return false;
@@ -76,7 +87,7 @@ bool flash_lock_option_bytes(void) {
 
 //------------------------------------------------------------------------------
 
-bool flash_unlock_option_bytes(void) {
+bool flash_unlock_options(void) {
   // Unlock option bytes
   if (!flash_set_obkeyr(UNLOCK_KEY1) || !flash_set_obkeyr(UNLOCK_KEY2))
     return false;

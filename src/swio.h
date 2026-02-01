@@ -415,10 +415,27 @@ inline dm_shdwcfgr dm_get_shdwcfgr(void) {
 }
 
 //------------------------------------------------------------------------------
-// NOTE: not in doc but appears to be part info
+// Chip ID
 
-#define DM_PART  0x7F
+#define DM_CHIPID  0x7F
 
-inline uint32_t dm_get_part(void) { return swio_get(DM_PART); }
+#define DMID_VARIANT  (1 << 2)
+
+typedef union {
+  uint32_t raw;
+  struct {
+    uint32_t VALUE0  : 8;  //  8
+    uint32_t VALUE1  : 8;  //  16
+    uint32_t VARIANT : 8;  //  24; Chip package type
+    uint32_t VALUE3  : 8;  //  32
+  } b;
+} dm_chipid;
+
+void dm_chipid_dump(dm_chipid r);
+inline dm_chipid dm_get_chipid(void) {
+  dm_chipid chipid;
+  chipid.raw = swio_get(DM_CHIPID);
+  return chipid;
+}
 
 //------------------------------------------------------------------------------

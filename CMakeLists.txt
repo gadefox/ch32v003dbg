@@ -10,7 +10,7 @@ pico_sdk_init()
 
 add_executable(ch32v003dbg src/break.c src/console.c src/context.c src/flash.c
   src/main.c src/options.c src/packet.c src/server.c src/swio.c src/xmodem.c
-  src/tusb_config.c src/utils.c)
+  src/tusb_config.c src/utils.c src/vendor.c)
 
 target_include_directories(ch32v003dbg PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
   # This directory is required so that TinyUSB can find src/tusb_config.h

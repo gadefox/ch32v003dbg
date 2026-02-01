@@ -48,6 +48,7 @@ void print_num(uint8_t spaces, const char* name, uint32_t value);
 void print_float(uint8_t spaces, const char* name, float value);
 void print_hex(uint8_t spaces, const char* name, uint32_t value);
 void print_bits(uint8_t spaces, const char *name, uint32_t value);
+void print_str(uint8_t spaces, const char* name, const char* text);
 
 #if LOGS
 

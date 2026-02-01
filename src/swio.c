@@ -6,6 +6,7 @@
 #include "break.h"
 #include "swio.h"
 #include "utils.h"
+#include "vendor.h"
 
 //------------------------------------------------------------------------------
 
@@ -163,8 +164,8 @@ void swio_dump(void) {
   dm_shdwcfgr shwdcfgr = dm_get_shdwcfgr();
   dm_shdwcfgr_dump(shwdcfgr);
 
-  uint32_t part = dm_get_part();
-  dm_print(DM_PART, part);
+  dm_chipid chipid = dm_get_chipid();
+  dm_chipid_dump(chipid);
 }
 
 //==============================================================================
@@ -219,8 +220,8 @@ const char* dm_to_name(uint8_t reg) {
       return "DM_CFGR";
     case DM_SHDWCFGR:
       return "DM_SHDWCFGR";
-    case DM_PART:
-      return "DM_PART";
+    case DM_CHIPID:
+      return "DM_CHIPID";
     default:
       return "DM_?";
   }
@@ -316,6 +317,15 @@ void dm_shdwcfgr_dump(dm_shdwcfgr r) {
   dm_print(DM_SHDWCFGR, r.raw);
   printf("  CHECKEN:%d  CMDEXTEN:%d  IOMODECFG:%d  KEY:%04X  OUTEN:%d  SOPNCFG:%d  TDIVCFG:%d\n",
          r.b.CHECKEN, r.b.CMDEXTEN, r.b.IOMODECFG, r.b.KEY, r.b.OUTEN, r.b.SOPNCFG, r.b.TDIVCFG);
+}
+
+//------------------------------------------------------------------------------
+
+void dm_chipid_dump(dm_chipid r) {
+  dm_print(DM_CHIPID, r.raw);
+
+  const char* variant = variant_to_text(r.b.VARIANT);
+  print_str(2, "variant", variant);
 }
 
 //------------------------------------------------------------------------------

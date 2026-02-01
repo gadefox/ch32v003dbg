@@ -224,14 +224,16 @@ inline uint16_t esig_get_flacap(void) {
 // Lock/unlock flash. Assume flash always starts locked.
 bool flash_is_locked(uint32_t set, uint32_t clear);
 
+bool flash_unlock_boot(void);
+
 bool flash_lock_fpec(void);
 bool flash_unlock_fpec(void);
 
 bool flash_lock_fast_prog(void);
 bool flash_unlock_fast_prog(void);
 
-bool flash_lock_option_bytes(void);
-bool flash_unlock_option_bytes(void);
+bool flash_lock_options(void);
+bool flash_unlock_options(void);
 
 // Flash erase, addresses must be aligned
 bool flash_erase(uint32_t addr, uint32_t ctlr, uint32_t timeout_us);

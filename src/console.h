@@ -61,6 +61,5 @@ void console_info_help(void);
 void console_info_parse(void);
 
 void console_info_flash(void);
-void console_info_id(void);
 
 //------------------------------------------------------------------------------
