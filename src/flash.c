@@ -69,15 +69,21 @@ int flash_fastprog_unlock(void) {
 // API
 
 bool flash_status_wait(void) {
-  for (int i = 0; i < 200; i++) {  // timeout 100 ms
+  for (int i = 0; i < 250; i++) {  // timeout 100 ms
     flash_statr statr;
     if (!flash_get_statr(&statr))
       return false;
 
-    if (!statr.b.BUSY)
-      return true;
-
-    sleep_us(500);
+    if (statr.raw & STATR_BUSY) {
+      sleep_us(400);
+      continue;
+    }
+/*
+    if (statr.raw & STATR_EOP) {
+      print_c(2, "EOP!\n");
+      (void)flash_set_statr(STATR_EOP);  // W1C
+    }*/
+    return true;
   }
 
   print_r(2, "flash: status timeout\n");
@@ -158,12 +164,18 @@ const uint16_t prog_write[] = {
   0xC950           // sw   a2, 20(a0)           // FLASH_ADDR = new address
 };
 
+_Static_assert(!(sizeof(prog_write) & 3), "prog_write");
+
 //------------------------------------------------------------------------------
 // NOTE: Flash write must be page-aligned: word_count has to be a whole number of pages
  
 bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count) {
   CHECK(!(count % CH32_FLASH_PAGE_WORDS));
   CHECK(!(addr & 3));
+
+#if PROG_DUMP
+  print_c("flash write: addr=%08X size=%d\n", addr, count);
+#endif
 
   if (!flash_set_addr(addr))                                 return false;
 
@@ -214,9 +226,9 @@ bool flash_verify_pages(uint32_t addr, const uint32_t *data, size_t count) {
   uint32_t *readback = malloc(bytes);
   bool ret = false;
 
-  if (!ctx_get_block_aligned(addr, readback, bytes)) goto cleanup;
+  if (!ctx_get_block(addr, readback, bytes)) goto cleanup;
   for (size_t i = 0; i < count; i++)
-    if (data[i] != readback[i])                      goto cleanup;
+    if (data[i] != readback[i])              goto cleanup;
 
   // Success
   ret = true;
@@ -283,8 +295,10 @@ void flash_ctlr_dump(flash_ctlr r) {
 
 void flash_obr_dump(flash_obr r) {
   print_hex(0, "OBR", r.raw);
-  printf("  DATA0:%d  DATA1:%d  IWDG_SW:%d  OBERR:%d  RDPRT:%d  RST_MODE  STANDBY_RST:%d  START_MODE:%d\n",
-         r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR, r.b.RDPRT, r.b.RST_MODE, r.b.STANDBY_RST, r.b.START_MODE);
+  printf("  DATA0:%02X  DATA1:%02X  IWDG_SW:%d  OBERR:%d\n",
+         r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR);
+  printf("  RDPRT:%d  RST_MODE:%d  STANDBY_RST:%d  START_MODE:%d\n",
+         r.b.RDPRT, r.b.RST_MODE, r.b.STANDBY_RST, r.b.START_MODE);
 }
 
 //------------------------------------------------------------------------------

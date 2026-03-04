@@ -215,6 +215,11 @@ typedef enum {
 
 void dm_cmder_dump(dm_cmder_t cmder, bool print_name);
 
+#define DMA_DATACOUNT(c)    ((c) & 0xF)
+#define DMA_CMDER(e)        (((e) & 0b111) << 8)
+#define DMA_BUSY            (1u << 12)
+#define DMA_PROGBUFSIZE(s)  (((s) & 0x1F) << 24)
+
 typedef union {
   uint32_t raw;
   struct {

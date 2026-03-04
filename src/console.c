@@ -456,19 +456,9 @@ static void console_info_parse(void) {
 // Option bytes handlers
 
 static void console_option_get(void) {
+  uint8_t data[] = { 0xA5, 0x17 };
   optb_unlock();
-  optb_write(0x0, 0x01);
-  optb_unlock();
-  optb_write(0x4, 0x0001);
-  optb_unlock();
-  optb_write(0x8, 0x000001);
-  optb_unlock();
-  optb_write(0xC, 0x00000001);
-  optb_unlock();
-  optb_write(0x20, 0xFE01);
-  optb_unlock();
-  optb_write(0x28, 0xFE01FFFF);
-  optb_unlock();
+  optb_write(0, data, 2);
   return;
 
   print_y(0, "option:get\n");

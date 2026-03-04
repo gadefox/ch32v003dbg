@@ -79,8 +79,8 @@ static cache_page *cache_page_alloc(uint16_t index) {
     return NULL;
 
   // Load flash page bytes
-  if (!ctx_get_block_aligned(index * CH32_FLASH_PAGE_SIZE + CH32_FLASH_ADDR,
-                             (uint32_t *)page->cache, CH32_FLASH_PAGE_WORDS))
+  if (!ctx_get_block(index * CH32_FLASH_PAGE_SIZE + CH32_FLASH_ADDR,
+                     (uint32_t *)page->cache, CH32_FLASH_PAGE_WORDS))
     return NULL;
 
   // Initialize page slot
@@ -349,7 +349,7 @@ bool break_resume(bool step) {
 static int break_scan_page(uint32_t addr) {
   uint16_t page[CH32_FLASH_PAGE_WORDS * 2];
 
-  if (!ctx_get_block_aligned(addr, (uint32_t *)page, CH32_FLASH_PAGE_WORDS))
+  if (!ctx_get_block(addr, (uint32_t *)page, CH32_FLASH_PAGE_WORDS))
     return -1;
 
   for (size_t i = 0; i < CH32_FLASH_PAGE_WORDS * 2; i++) {

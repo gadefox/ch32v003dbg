@@ -46,8 +46,8 @@ bool ctx_set_mem8(uint32_t addr, uint8_t data);
 
 //----------
 // Bulk memory access (aligned)
-bool ctx_get_block_aligned(uint32_t addr, uint32_t *data, size_t count);
-bool ctx_set_block_aligned(uint32_t addr, uint32_t *data, size_t count);
+bool ctx_get_block(uint32_t addr, uint32_t *data, size_t count);
+bool ctx_set_block(uint32_t addr, uint32_t *data, size_t count);
 
 void ctx_test(void);
 

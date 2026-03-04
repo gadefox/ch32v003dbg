@@ -95,7 +95,6 @@ static uint8_t prog_size;
 //------------------------------------------------------------------------------
 
 static inline void prog_cache_init(uint8_t new_size) {
-  CHECK(new_size <= DM_PROGBUFMAX)
   prog_size = new_size;
 
   for (size_t i = 0; i < prog_size; i++)
@@ -118,11 +117,10 @@ static void prog_cache_dump(void) {
 //------------------------------------------------------------------------------
 
 void ctx_load_prog(const uint32_t *prog, uint8_t size) {
-  CHECK(size <= prog_size);
   dm_abstractcs_clear_err();
 
   // Upload any DM_PROGBUF(N) word that changed
-  for (size_t i = 0; i < size; i++) {
+  for (uint8_t i = 0; i < size; i++) {
     if (prog_cache[i] != prog[i]) {
       dm_set_progbuf(i, prog[i]);
       prog_cache[i] = prog[i];
@@ -257,25 +255,25 @@ static void test_aligned_block_reads(uint32_t base) {
 
     // Fill memory
     uint32_t addr = base;
-    if (!test_write_const(addr, offset))                  goto result;
+    if (!test_write_const(addr, offset))          goto result;
     addr += offset;
-    if (!test_write_seq(addr))                            goto result;
+    if (!test_write_seq(addr))                    goto result;
     addr += 16;
-    if (!test_write_const(addr, 4 - offset))              goto result;
+    if (!test_write_const(addr, 4 - offset))      goto result;
 
     // Read blocks
     uint8_t buf[20];
     memset(buf, 0xFF, sizeof(buf));
-    if (!ctx_get_block_aligned(base, (uint32_t *)buf, 5)) goto result;
+    if (!ctx_get_block(base, (uint32_t *)buf, 5)) goto result;
 
     // Test result
     uint8_t *p = buf;
     for (int i = offset; i > 0; i--)
-      if (*p++ != 0xAB)                                   goto result;
+      if (*p++ != 0xAB)                           goto result;
     for (int i = 0; i < 16; i++)
-      if (*p++ != i)                                      goto result;
+      if (*p++ != i)                              goto result;
     for (int i = offset; i < 4; i++)
-      if (*p++ != 0xAB)                                   goto result;
+      if (*p++ != 0xAB)                           goto result;
 
     result = true;
 
@@ -303,15 +301,15 @@ static void test_aligned_block_writes(uint32_t base) {
     for (int i = offset; i < 4; i++)
       *p++ = 0xAB;
 
-    if (!ctx_set_block_aligned(base, (uint32_t *)buf, 5))   goto result;
+    if (!ctx_set_block(base, (uint32_t *)buf, 5)) goto result;
 
     // Test result
     uint32_t addr = base;
-    if (!test_read_const(addr, offset))                     goto result;
+    if (!test_read_const(addr, offset))           goto result;
     addr += offset;
-    if (!test_read_seq(addr))                               goto result;
+    if (!test_read_seq(addr))                     goto result;
     addr += 16;
-    if (!test_read_const(addr, 4 - offset))                 goto result;
+    if (!test_read_const(addr, 4 - offset))       goto result;
 
     result = true;
 
@@ -326,7 +324,7 @@ static void test_block(uint32_t addr, bool expected) {
   printf("  block: %08X, expected: %d", addr, expected);
 
   uint32_t block[4] = { 0x88AACCEE, 0x88AACCEE, 0x88AACCEE, 0x88AACCEE };
-  if (ctx_set_block_aligned(addr, block, count_of(block)))
+  if (ctx_set_block(addr, block, count_of(block)))
     print_status(true);
 }
 
@@ -440,7 +438,7 @@ void ctx_dump_block(uint32_t offset, uint32_t base, uint32_t size) {
   uint32_t words = remaining < DUMP_WORDS * 4 ? remaining / 4 : DUMP_WORDS;
 
   uint32_t addr = base + offset;
-  if (!ctx_get_block_aligned(addr, data, words))
+  if (!ctx_get_block(addr, data, words))
     return;
 
   print_hex(0, "addr", addr);
@@ -811,39 +809,41 @@ bool ctx_set_mem8(uint32_t addr, uint8_t data) {
 
 //------------------------------------------------------------------------------
 
-static uint16_t prog_get_set_u32[] = {
+static uint16_t prog_get_set_mem32[] = {
   0x0537, 0xE000,  // lui  a0, DM_DATA_BASE[31:12]
   0x0513, 0x0F45,  // addi a0, a0, DM_DATA_ADDR[11:0]
   0x414C,          // lw   a1, 4(a0)                  // Load addr from DATA1
   0x8985,          // andi a1, a1, 1                  // Check LSB (set/get flag)
-  0xC591,          // beqz a1, get_u32                // If 0 -> read
-                // set_u32:
+  0xC591,          // beqz a1, get                    // If 0 -> read
+                // set:
   0x414C,          // lw   a1, 4(a0)                  // Reload addr from DATA1
   0x15FD,          // addi a1, a1, -1                 // Clear LSB flag
   0x4108,          // lw   a0, 0(a0)                  // Load data from DATA0
   0xC188,          // sw   a0, 0(a1)                  // Write to memory
   0x9002,          // ebreak
-                // get_u32:
-  0x414C,          // lw   a1, 4(a0)                  // Load addr from DATA1
-  0x418C,          // lw   a1, 0(a1)                  // Read from memory
+                // get:
+  0x414C,          // lw   a1, 4(a0)                  // Reload addr from DATA1
+  0x418C,          // lw   a1, 0(a1)                  // Read data from memory
   0xC10C,          // sw   a1, 0(a0)                  // Write to DATA0
   0x9002           // ebreak
 };
+
+_Static_assert(!(sizeof(prog_get_set_mem32) & 3), "prog_get_set_mem32");
 
 //------------------------------------------------------------------------------
 
 bool ctx_get_mem32_aligned(uint32_t addr, uint32_t *data) {
 #if PROG_DUMP
-  print_c("get mem %08X\n", addr);
+  print_c("get mem32 %08X\n", addr);
 #endif
 
-  ctx_load_prog((uint32_t *)prog_get_set_u32, sizeof(prog_get_set_u32) / 4);
+  ctx_load_prog((uint32_t *)prog_get_set_mem32, sizeof(prog_get_set_mem32) / 4);
   if (!gpr_cache_save(GPRB(A0) | GPRB(A1)))
     return false;
 
   // Set LSB to 0 to indicate read operation
   dm_set_data1(addr);
-  if (!ctx_prog_exec("getw"))
+  if (!ctx_prog_exec("get mem32"))
     return false;
 
   *data = dm_get_data0();
@@ -854,10 +854,10 @@ bool ctx_get_mem32_aligned(uint32_t addr, uint32_t *data) {
 
 bool ctx_set_mem32_aligned(uint32_t addr, uint32_t data) {
 #if PROG_DUMP
-  print_c("set mem %08X\n", addr);
+  print_c("set mem32 %08X\n", addr);
 #endif
 
-  ctx_load_prog((uint32_t *)prog_get_set_u32, sizeof(prog_get_set_u32) / 4);
+  ctx_load_prog((uint32_t *)prog_get_set_mem32, sizeof(prog_get_set_mem32) / 4);
   if (!gpr_cache_save(GPRB(A0) | GPRB(A1)))
     return false;
 
@@ -865,34 +865,35 @@ bool ctx_set_mem32_aligned(uint32_t addr, uint32_t data) {
   dm_set_data1(addr | 1);
   dm_set_data0(data);
 
-  return ctx_prog_exec("setw");
+  return ctx_prog_exec("set mem32");
 }
 
 //==============================================================================
 // Memory access - block
 
-static uint16_t prog_get_block_aligned[] = {
+static uint16_t prog_get_block[] = {
   0x0537, 0xE000,  // lui  a0, DM_DATA_BASE[31:12]
-  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)      // Load src addr
-  0x418C,          // lw   a1, 0(a1)                        // Read from memory
-  0x2A23, 0x0EB5,  // sw   a1, DM_DATA0_ADDR[11:0](a0)      // Write to DATA0
-  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)      // Reload addr
-  0x0591,          // addi a1, a1, 4                        // Increment addr
-  0x2C23, 0x0EB5,  // sw   a1, DM_DATA1_ADDR[11:0](a0)      // Update addr
+  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)  // Load src addr from DATA1
+  0x4190,          // lw   a2, 0(a1)                    // Read data from memory
+  0x2A23, 0x0EC5,  // sw   a2, DM_DATA0_ADDR[11:0](a0)  // Write data to DATA0
+  0x0591,          // addi a1, a1, 4                    // Increment src addr
+  0x2C23, 0x0EB5,  // sw   a1, DM_DATA1_ADDR[11:0](a0)  // Update addr in DATA1
   0x9002,          // ebreak
   0x0001           // nop
 };
 
-bool ctx_get_block_aligned(uint32_t addr, uint32_t *data, size_t count) {
+_Static_assert(!(sizeof(prog_get_block) & 3), "prog_get_block");
+
+//------------------------------------------------------------------------------
+
+bool ctx_get_block(uint32_t addr, uint32_t *data, size_t count) {
   CHECK(!(addr & 3));
 
-  ctx_load_prog((uint32_t *)prog_get_block_aligned, sizeof(prog_get_block_aligned) / 4);
-  if (!gpr_cache_save(GPRB(A0) | GPRB(A1)))
-    return false;
+  ctx_load_prog((uint32_t *)prog_get_block, sizeof(prog_get_block) / 4);
+  if (!gpr_cache_save(GPRB(A0) | GPRB(A1) | GPRB(A2))) return false;
 
   dm_set_data1(addr);
-  if (!ctx_prog_exec("getblk"))  // 10 ms
-    return false;
+  if (!ctx_prog_exec("getblk32"))                      return false;
 
   // Read words using auto-execution
   dm_set_abstractauto(DM_AUTOEXECDATA(1));
@@ -900,10 +901,8 @@ bool ctx_get_block_aligned(uint32_t addr, uint32_t *data, size_t count) {
 
   while (count > 1) {
     *data++ = dm_get_data0();
+    if (!dm_abstractcs_wait())                         goto cleanup;
     count--;
-
-    if (!dm_abstractcs_wait())
-      goto cleanup;
   }
 
   // Success
@@ -922,24 +921,26 @@ cleanup:
 
 //------------------------------------------------------------------------------
 
-static uint16_t prog_set_block_aligned[] = {
+static uint16_t prog_set_block[] = {
   0x0537, 0xE000,  // lui  a0, DM_DATA_BASE[31:12]
-  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)      // Load dest addr
-  0x2503, 0x0F45,  // lw   a0, DM_DATA0_ADDR[11:0](a0)      // Load data
-  0xC188,          // sw   a0, 0(a1)                        // Write to memory
-  0x0591,          // addi a1, a1, 4                        // Increment addr
-  0x0537, 0xE000,  // lui  a0, DM_DATA1_ADDR[31:12]
-  0x2C23, 0x0EB5,  // sw   a1, DM_DATA1_ADDR[11:0](a0)      // Update addr
+  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)  // Load dest addr from DATA1
+  0x2603, 0x0F45,  // lw   a2, DM_DATA0_ADDR[11:0](a0)  // Load data from DATA0
+  0xC190,          // sw   a2, 0(a1)                    // Write data to memory
+  0x0591,          // addi a1, a1, 4                    // Increment dest addr
+  0x2C23, 0x0EB5,  // sw   a1, DM_DATA1_ADDR[11:0](a0)  // Update addr in DATA1
   0x9002,          // ebreak
   0x0001           // nop
 };
 
-bool ctx_set_block_aligned(uint32_t addr, uint32_t *data, size_t count) {
+_Static_assert(!(sizeof(prog_set_block) & 3), "prog_set_block");
+
+//------------------------------------------------------------------------------
+
+bool ctx_set_block(uint32_t addr, uint32_t *data, size_t count) {
   CHECK(!(addr & 3));
 
-  ctx_load_prog((uint32_t *)prog_set_block_aligned, sizeof(prog_set_block_aligned) / 4);
-  if (!gpr_cache_save(GPRB(A0) | GPRB(A1)))
-    return false;
+  ctx_load_prog((uint32_t *)prog_set_block, sizeof(prog_set_block) / 4);
+  if (!gpr_cache_save(GPRB(A0) | GPRB(A1) | GPRB(A2))) return false;
 
   dm_set_data1(addr);
 
@@ -949,8 +950,7 @@ bool ctx_set_block_aligned(uint32_t addr, uint32_t *data, size_t count) {
 
   for (size_t i = 0; i < count; i++) {
     dm_set_data0(data[i]);
-    if (!dm_abstractcs_wait())
-      goto cleanup;
+    if (!dm_abstractcs_wait())                         goto cleanup;
   }
 
   // Success

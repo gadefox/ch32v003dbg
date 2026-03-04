@@ -196,6 +196,10 @@ bool flash_start(uint32_t ctlr);
 // Flash erase, addresses must be aligned
 bool flash_erase(uint32_t addr, uint32_t ctlr);
 
+// NOTE: Control bits include CTLR_OBWRE because clearing this bit locks the
+// option bytes. Unlocking cannot be achieved by simply setting it back to 1;
+// a specific key sequence is required to re-enable write access.
+// If the option bytes are not unlocked, setting this bit is ignored.
 inline bool flash_erase_page(uint32_t addr) {
   return flash_erase(addr, CTLR_OBWRE | CTLR_FTER); }  // Timeout < 4 ms
 

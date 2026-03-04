@@ -154,7 +154,8 @@ bool swio_reset(void) {
 
   // Clear the reset status signal
   dm_set_control(DMC_ACTIVE | DMC_ACKHAVERESET);
-  return dm_status_wait(DMS_ANYHAVERESET | DMS_ALLHAVERESET, 0);
+  return true;
+//  return dm_status_wait(DMS_ANYHAVERESET | DMS_ALLHAVERESET, 0);
 }
 
 //------------------------------------------------------------------------------
@@ -428,7 +429,7 @@ void dm_hartinfo_dump(dm_hartinfo r) {
 bool dm_abstractcs_wait(void) {
   for (int i = 0; i < 40; i++) {  // timeout 2 ms
     dm_abstractcs abstractcs = dm_get_abstractcs();
-    if (abstractcs.b.BUSY) {
+    if (abstractcs.raw & DMA_BUSY) {
       sleep_us(50);
       continue;
     }

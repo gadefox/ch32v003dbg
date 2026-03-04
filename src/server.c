@@ -323,7 +323,7 @@ void server_handle_m(void) {
       if (chunk > sizeof(buf))
         chunk = sizeof(buf);
 
-      if (!ctx_get_block_aligned(src, buf, count_of(buf)))
+      if (!ctx_get_block(src, buf, count_of(buf)))
         return;
       packet_put_hex_buf(&send, (uint8_t*)buf, chunk);
       src += chunk;
@@ -370,7 +370,7 @@ void server_handle_M(void) {
         chunk = sizeof(buf);
 
       packet_take_hex_to_buf(&recv, (uint8_t*)buf, chunk);
-      ctx_set_block_aligned(dst, buf, count_of(buf));
+      ctx_set_block(dst, buf, count_of(buf));
       dst += chunk;
       len -= chunk;
     } else {

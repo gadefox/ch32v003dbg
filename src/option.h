@@ -13,7 +13,7 @@ int optb_unlock(void);
 // Debug dump
 void optb_dump(void);
 
-bool optb_write(uint8_t offset, uint32_t data);
+bool optb_write(uint32_t addr, uint8_t *data, size_t count);
 inline bool optb_erase(void) { return flash_start(CTLR_OBWRE | CTLR_OBER); }
 
 //==============================================================================
