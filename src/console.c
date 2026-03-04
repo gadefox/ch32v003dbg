@@ -48,7 +48,7 @@ static void console_get_u32(uint32_t base, size_t size) {
   addr += base;
 
   uint32_t value;
-  if (ctx_get_mem_u32_aligned(addr, &value))
+  if (ctx_get_mem32_aligned(addr, &value))
     printf("  %08X: %08X\n", addr, value);
 }
 
@@ -170,7 +170,7 @@ static void console_boot_lock(void) {
 static void console_boot_unlock(void) {
   print_y(0, "boot:unlock\n");
   if (ctx_halted_err("unlock bootloader")) {
-    int status = boot_unlock();
+    bool status = !boot_unlock();
     print_status(status);
   }
 }
@@ -312,11 +312,11 @@ static void console_flash_unlock(void) {
   if (!ctx_halted_err("unlock flash"))
     return;
 
-  bool status = flash_fpec_unlock() == 0;
+  bool status = !flash_fpec_unlock();
   printf("  controller:");
   print_status(status);
 
-  status = flash_fastprog_unlock() == 0;
+  status = !flash_fastprog_unlock();
   printf("  fast prog:");
   print_status(status);
 }
@@ -456,23 +456,52 @@ static void console_info_parse(void) {
 // Option bytes handlers
 
 static void console_option_get(void) {
+  optb_unlock();
+  optb_write(0x0, 0x01);
+  optb_unlock();
+  optb_write(0x4, 0x0001);
+  optb_unlock();
+  optb_write(0x8, 0x000001);
+  optb_unlock();
+  optb_write(0xC, 0x00000001);
+  optb_unlock();
+  optb_write(0x20, 0xFE01);
+  optb_unlock();
+  optb_write(0x28, 0xFE01FFFF);
+  optb_unlock();
+  return;
+
   print_y(0, "option:get\n");
   if (ctx_halted_err("read option bytes"))
     console_get_u32(OPTB_ADDR, OPTB_SIZE - 4);
 }
 
-static void console_option_lock(void) {
-  print_y(0, "option:lock\n");
-  if (ctx_halted_err("lock option bytes")) {
-    bool status = optb_lock();
+//------------------------------------------------------------------------------
+
+static void console_option_erase(void) {
+  print_y(0, "option:erase\n");
+  if (ctx_halted_err("erase option bytes")) {
+    bool status = optb_erase();
     print_status(status);
   }
 }
 
+//------------------------------------------------------------------------------
+
+static void console_option_lock(void) {
+  print_y(0, "option:lock\n");
+  if (ctx_halted_err("lock option bytes")) {
+    bool status = !optb_lock();
+    print_status(status);
+  }
+}
+
+//------------------------------------------------------------------------------
+
 static void console_option_unlock(void) {
   print_y(0, "option:unlock\n");
   if (ctx_halted_err("unlock option bytes")) {
-    bool status = optb_unlock();
+    bool status = optb_unlock() > 0;
     print_status(status);
   }
 }
@@ -480,10 +509,11 @@ static void console_option_unlock(void) {
 //------------------------------------------------------------------------------
 
 static const handler option_handlers[] = {
-  { "info",   "i", NULL,     optb_dump },
-  { "get",    "g", "offset", console_option_get },
-  { "lock",   "lo", NULL,    console_option_lock },
-  { "unlock", "un", NULL,    console_option_unlock }
+  { "info",   "i",  NULL,     optb_dump },
+  { "get",    "g",  "offset", console_option_get },
+  { "erase",  "er", NULL,     console_option_erase },
+  { "lock",   "lo", NULL,     console_option_lock },
+  { "unlock", "un", NULL,     console_option_unlock }
 };
 
 //------------------------------------------------------------------------------

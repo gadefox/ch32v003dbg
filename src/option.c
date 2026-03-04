@@ -1,39 +1,73 @@
 #include <stdio.h>
 
-#include "flash.h"
 #include "option.h"
 #include "utils.h"
 
+#include <pico/time.h>
 //------------------------------------------------------------------------------
 
-bool optb_is_locked(void) {
-  flash_ctlr ctlr;
-  if ( !flash_get_ctlr(&ctlr))
-    return true;
-  return ctlr.b.OBWRE;
-}
-
-//------------------------------------------------------------------------------
-
-bool optb_lock(void) {
+inline int optb_is_unlocked(void) {
   flash_ctlr ctlr;
   if (!flash_get_ctlr(&ctlr))
-    return false;
-
-  if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
-    return false;
-
-  return optb_is_locked();
+    return -1;
+  return ctlr.raw & CTLR_OBWRE;
 }
 
 //------------------------------------------------------------------------------
 
-bool optb_unlock(void) {
+int optb_lock(void) {
+  flash_ctlr ctlr;
+  if (!flash_get_ctlr(&ctlr))
+    return -1;
+  if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
+    return -1;
+  return optb_is_unlocked();
+}
+
+//------------------------------------------------------------------------------
+
+int optb_unlock(void) {
   // Unlock option bytes
   if (!optb_set_obkeyr(UNLOCK_KEY1) || !optb_set_obkeyr(UNLOCK_KEY2))
-    return false;
+    return -1;
+  return optb_is_unlocked();
+}
 
-  return !optb_is_locked();
+//------------------------------------------------------------------------------
+
+bool optb_write(uint8_t offset, uint32_t data) {
+//  if (!flash_set_addr(OPTB_ADDR + offset))                  return false;
+
+
+  uint32_t addr = OPTB_ADDR + offset;
+  printf("%08X |", addr);
+//  if (!flash_set_addr(addr))                  return false;
+
+  printf("-");
+  flash_ctlr ctlr;
+  if (!flash_get_ctlr(&ctlr))                        return false;
+  printf("%08X |", ctlr.raw);
+  if (!flash_set_ctlr(ctlr.raw | CTLR_OBPG))                         return false;
+
+  flash_statr x;
+  flash_get_statr(&x);
+  printf("%d |", x.b.BUSY);
+
+  bool ret = false;
+
+  if (!ctx_set_mem32_aligned(addr, data))   goto cleanup;
+  flash_get_statr(&x);
+  printf("%d |", x.b.BUSY);
+
+  if (!flash_status_wait())                               goto cleanup;
+  printf("\n");
+
+  ret = true;
+
+cleanup:
+  // Restore control register
+  (void)flash_set_ctlr(ctlr.raw);
+  return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -82,7 +116,10 @@ void optb_data_dump(optb_data r) {
 //------------------------------------------------------------------------------
 
 void optb_wrpr_dump(uint8_t i, optb_wrpr r) {
-  print_b(0, "WRPR%d\n", i);
+  char wrpr[] = "WRPR ";
+  wrpr[4] = i + '0';
+  print_hex(0, wrpr, r.raw);
+
   print_bits(2, "0", r.b.WRPR0, 8);
   print_bits(1, "n0", r.b.nWRPR0, 8);
   print_bits(2, "1", r.b.WRPR1, 8);

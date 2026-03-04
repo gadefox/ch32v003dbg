@@ -1,6 +1,7 @@
 #pragma once
 
 #include "context.h"
+#include "flash.h"
 
 //==============================================================================
 // API
@@ -11,7 +12,7 @@ void vendor_dump(void);
 // Vendor bytes areas
 
 #define VNDB_ADDR  0x1FFFF7C0
-#define VNDB_SIZE  64  /* 0x1FFFF800 */
+#define VNDB_SIZE  CH32_FLASH_PAGE_SIZE  /* 0x1FFFF800 */
 
 typedef enum {
   TSSOP20,  // 0
@@ -34,7 +35,7 @@ typedef union {
 } vndb_chipid;
 
 void vndb_chipid_dump(const char *name, vndb_chipid r);
-inline bool vndb_get_chipid(vndb_chipid *chipid) { return ctx_get_mem_u32_aligned(VNDB_CHIPID, &chipid->raw); }
+inline bool vndb_get_chipid(vndb_chipid *chipid) { return ctx_get_mem32_aligned(VNDB_CHIPID, &chipid->raw); }
 
 _Static_assert(sizeof(vndb_chipid) == 4, "vndb_chipid");
 
@@ -42,7 +43,7 @@ _Static_assert(sizeof(vndb_chipid) == 4, "vndb_chipid");
 
 #define VNDB_PLLTRIM  (VNDB_ADDR + 0x14)  /* 0x1FFFF7D4 */
 
-inline bool vndb_get_plltrim(uint16_t *value) { return ctx_get_mem_u16(VNDB_PLLTRIM, value); }
+inline bool vndb_get_plltrim(uint16_t *value) { return ctx_get_mem16(VNDB_PLLTRIM, value); }
 
 //==============================================================================
 // Electronic Signature
@@ -52,7 +53,7 @@ inline bool vndb_get_plltrim(uint16_t *value) { return ctx_get_mem_u16(VNDB_PLLT
 
 #define ESIG_FLACAP  (VNDB_ADDR + 0x20)  /* 0x1FFFF7E0 */
 
-inline bool esig_get_flacap(uint16_t *value) { return ctx_get_mem_u16(ESIG_FLACAP, value); }
+inline bool esig_get_flacap(uint16_t *value) { return ctx_get_mem16(ESIG_FLACAP, value); }
 
 //------------------------------------------------------------------------------
 // UID registers
@@ -61,8 +62,8 @@ inline bool esig_get_flacap(uint16_t *value) { return ctx_get_mem_u16(ESIG_FLACA
 #define ESIG_UNIID2  (VNDB_ADDR + 0x2C)  /* 0x1FFFF7EC */
 #define ESIG_UNIID3  (VNDB_ADDR + 0x30)  /* 0x1FFFF7F0 */
 
-inline bool esig_get_uniid1(uint32_t *value) { return ctx_get_mem_u32_aligned(ESIG_UNIID1, value); }
-inline bool esig_get_uniid2(uint32_t *value) { return ctx_get_mem_u32_aligned(ESIG_UNIID2, value); }
-inline bool esig_get_uniid3(uint32_t *value) { return ctx_get_mem_u32_aligned(ESIG_UNIID3, value); }
+inline bool esig_get_uniid1(uint32_t *value) { return ctx_get_mem32_aligned(ESIG_UNIID1, value); }
+inline bool esig_get_uniid2(uint32_t *value) { return ctx_get_mem32_aligned(ESIG_UNIID2, value); }
+inline bool esig_get_uniid3(uint32_t *value) { return ctx_get_mem32_aligned(ESIG_UNIID3, value); }
 
 //------------------------------------------------------------------------------

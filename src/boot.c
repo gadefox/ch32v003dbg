@@ -9,7 +9,7 @@ int boot_locked(void) {
   flash_statr statr;
   if (!flash_get_statr(&statr))
     return -1;
-  return statr.b.BOOT_LOCK;
+  return statr.raw & STATR_BOOT_LOCK;
 }
 
 //------------------------------------------------------------------------------

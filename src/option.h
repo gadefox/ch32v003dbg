@@ -1,22 +1,26 @@
 #pragma once
 
 #include "context.h"
+#include "flash.h"
 
 //==============================================================================
 // API
 
-bool optb_is_locked(void);
-bool optb_lock(void);
-bool optb_unlock(void);
+int optb_is_unlocked(void);
+int optb_lock(void);
+int optb_unlock(void);
 
 // Debug dump
 void optb_dump(void);
+
+bool optb_write(uint8_t offset, uint32_t data);
+inline bool optb_erase(void) { return flash_start(CTLR_OBWRE | CTLR_OBER); }
 
 //==============================================================================
 // Option bytes area
 
 #define OPTB_ADDR  0x1FFFF800
-#define OPTB_SIZE  64  /* 0x1FFFF840 */
+#define OPTB_SIZE  CH32_FLASH_PAGE_SIZE  /* 0x1FFFF840 */
 
 //------------------------------------------------------------------------------
 
@@ -45,8 +49,8 @@ typedef union {
 _Static_assert(sizeof(optb_user) == 4, "optb_user");
 
 void optb_user_dump(optb_user r);
-inline bool optb_set_user(uint32_t value) { return ctx_set_mem_u32_aligned(OPTB_USER, value); }
-inline bool optb_get_user(optb_user *user) { return ctx_get_mem_u32_aligned(OPTB_USER, &user->raw); }
+inline bool optb_set_user(uint32_t value) { return ctx_set_mem32_aligned(OPTB_USER, value); }
+inline bool optb_get_user(optb_user *user) { return ctx_get_mem32_aligned(OPTB_USER, &user->raw); }
 
 //------------------------------------------------------------------------------
 
@@ -65,8 +69,8 @@ typedef union {
 _Static_assert(sizeof(optb_data) == 4, "optb_data");
 
 void optb_data_dump(optb_data r);
-inline bool optb_set_data(uint32_t value) { return ctx_set_mem_u32_aligned(OPTB_DATA, value); }
-inline bool optb_get_data(optb_data *data) { return ctx_get_mem_u32_aligned(OPTB_DATA, &data->raw); }
+inline bool optb_set_data(uint32_t value) { return ctx_set_mem32_aligned(OPTB_DATA, value); }
+inline bool optb_get_data(optb_data *data) { return ctx_get_mem32_aligned(OPTB_DATA, &data->raw); }
 
 //------------------------------------------------------------------------------
 
@@ -85,8 +89,8 @@ typedef union {
 _Static_assert(sizeof(optb_wrpr) == 4, "optb_wrpr");
 
 void optb_wrpr_dump(uint8_t, optb_wrpr r);
-inline bool optb_set_wrpr(uint8_t i, uint32_t value) { return ctx_set_mem_u32_aligned(OPTB_WRPR + i * 4, value); }
-inline bool optb_get_wrpr(uint8_t i, optb_wrpr *wrpr) { return ctx_get_mem_u32_aligned(OPTB_WRPR + i * 4, &wrpr->raw); }
+inline bool optb_set_wrpr(uint8_t i, uint32_t value) { return ctx_set_mem32_aligned(OPTB_WRPR + i * 4, value); }
+inline bool optb_get_wrpr(uint8_t i, optb_wrpr *wrpr) { return ctx_get_mem32_aligned(OPTB_WRPR + i * 4, &wrpr->raw); }
 
 //==============================================================================
 // Option bytes area registers (memory-mapped I/O)
@@ -96,6 +100,6 @@ inline bool optb_get_wrpr(uint8_t i, optb_wrpr *wrpr) { return ctx_get_mem_u32_a
 
 #define OPTB_OBKEYR  0x40022008
 
-inline bool optb_set_obkeyr(uint32_t value) { return ctx_set_mem_u32_aligned(OPTB_OBKEYR, value); }
+inline bool optb_set_obkeyr(uint32_t value) { return ctx_set_mem32_aligned(OPTB_OBKEYR, value); }
 
 //------------------------------------------------------------------------------

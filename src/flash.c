@@ -68,14 +68,8 @@ int flash_fastprog_unlock(void) {
 //==============================================================================
 // API
 
-//------------------------------------------------------------------------------
-// NOTE: Flash erase timing (measured):
-// 1 page ≈ 3.3 ms
-// 1 sector (16 pages) ≈ 50 ms
-// chip erase ≈ 3.5 ms (global erase, not cumulative)
-
-static bool flash_wait(void) {
-  for (int i = 0; i < 100; i++) {  // timeout 100x1 ms
+bool flash_status_wait(void) {
+  for (int i = 0; i < 200; i++) {  // timeout 100 ms
     flash_statr statr;
     if (!flash_get_statr(&statr))
       return false;
@@ -83,11 +77,32 @@ static bool flash_wait(void) {
     if (!statr.b.BUSY)
       return true;
 
-    sleep_ms(1);
+    sleep_us(500);
   }
 
   print_r(2, "flash: status timeout\n");
   return false;  // timeout
+}
+
+//------------------------------------------------------------------------------
+
+bool flash_start(uint32_t ctlr) {
+  flash_ctlr save;
+  if (!flash_get_ctlr(&save))            return false;
+  if (!flash_set_ctlr(ctlr))             return false;
+
+  bool ret = false;
+
+  // Start the operation and wait for erase to complete
+  if (!flash_set_ctlr(ctlr | CTLR_STRT)) goto cleanup;
+  if (!flash_status_wait())              goto cleanup;
+
+  ret = true;
+
+cleanup:
+  // Restore control register
+  (void)flash_set_ctlr(save.raw);
+  return ret;
 }
 
 //------------------------------------------------------------------------------
@@ -97,28 +112,10 @@ static bool flash_wait(void) {
 // Speedup: 1.09x (9% faster with on-chip code) → minimal difference
 // Erase time dominated by flash HW, not debug overhead
 
-bool flash_erase(uint32_t addr, uint32_t ctlr_bits) {
-  // Set target address and erase mode
-  if (!flash_set_addr(addr))                  return false;
-
-  flash_ctlr ctlr_save;
-  if (!flash_get_ctlr(&ctlr_save))            return false;
-  if (!flash_set_ctlr(ctlr_bits))             return false;
-
-  bool ret = false;
-
-  // Start the erase operation
-  if (!flash_set_ctlr(ctlr_bits | CTLR_STRT)) goto cleanup;
-
-  // Wait for erase to complete
-  if (!flash_wait())                          goto cleanup;
-
-  ret = true;
-
-cleanup:
-  // Restore control register
-  (void)flash_set_ctlr(ctlr_save.raw);
-  return ret;
+inline bool flash_erase(uint32_t addr, uint32_t ctlr) {
+  if (!flash_set_addr(addr))
+    return false;
+  return flash_start(ctlr);
 }
 
 //------------------------------------------------------------------------------
@@ -168,23 +165,23 @@ bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count) {
   CHECK(!(count % CH32_FLASH_PAGE_WORDS));
   CHECK(!(addr & 3));
 
-  if (!flash_set_addr(addr))                    return false;
+  if (!flash_set_addr(addr))                                 return false;
 
-  flash_ctlr ctlr_save;
-  if (!flash_get_ctlr(&ctlr_save))              return false;
-  if (!flash_set_ctlr(CTLR_FTPG | CTLR_BUFRST)) return false;
+  flash_ctlr ctlr;
+  if (!flash_get_ctlr(&ctlr))                                return false;
+  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST)) return false;
 
   bool ret = false;
   ctx_load_prog((uint32_t *)prog_write, sizeof(prog_write) / 4);
   if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1) | GPRB(A2) | GPRB(A3) |
-        GPRB(A4) | GPRB(A5)))                   goto cleanup;
+        GPRB(A4) | GPRB(A5)))                                goto cleanup;
 
-  if (!gpr_set_a(0, FLASH_ACTLR))               goto cleanup;
-  if (!gpr_set_a(1, DM_DATA_ADDR))              goto cleanup;
-  if (!gpr_set_a(2, addr))                      goto cleanup;
-  if (!gpr_set_a(3, CTLR_FTPG | CTLR_BUFLOAD))  goto cleanup;
-  if (!gpr_set_a(4, CTLR_FTPG | CTLR_STRT))     goto cleanup;
-  if (!gpr_set_a(5, CTLR_FTPG | CTLR_BUFRST))   goto cleanup;
+  if (!gpr_set_a(0, FLASH_ACTLR))                            goto cleanup;
+  if (!gpr_set_a(1, DM_DATA_ADDR))                           goto cleanup;
+  if (!gpr_set_a(2, addr))                                   goto cleanup;
+  if (!gpr_set_a(3, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFLOAD))  goto cleanup;
+  if (!gpr_set_a(4, CTLR_OBWRE | CTLR_FTPG | CTLR_STRT))     goto cleanup;
+  if (!gpr_set_a(5, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST))   goto cleanup;
 
   // Flash words using auto-execution
   dm_set_abstractauto(DM_AUTOEXECDATA(1));
@@ -203,7 +200,7 @@ cleanup:
   dm_set_abstractauto(0);
 
   // Restor FLASH control register
-  (void)flash_set_ctlr(ctlr_save.raw);
+  (void)flash_set_ctlr(ctlr.raw);
 
   return ret;
 }
@@ -217,13 +214,9 @@ bool flash_verify_pages(uint32_t addr, const uint32_t *data, size_t count) {
   uint32_t *readback = malloc(bytes);
   bool ret = false;
 
-  if (!ctx_get_block_aligned(addr, readback, bytes))
-    goto cleanup;
-
-  for (size_t i = 0; i < count; i++) {
-    if (data[i] != readback[i])
-      goto cleanup;
-  }
+  if (!ctx_get_block_aligned(addr, readback, bytes)) goto cleanup;
+  for (size_t i = 0; i < count; i++)
+    if (data[i] != readback[i])                      goto cleanup;
 
   // Success
   ret = true;
@@ -282,8 +275,8 @@ void flash_ctlr_dump(flash_ctlr r) {
   print_hex(0, "CTLR", r.raw);
   printf("  BUFLOAD:%d  BUFRST:%d  ERRIE:%d  EOPIE:%d  FLOCK:%d  FTER:%d  FTPG:%d\n",
          r.b.BUFLOAD, r.b.BUFRST, r.b.ERRIE, r.b.EOPIE, r.b.FLOCK, r.b.FTER, r.b.FTPG);
-  printf("  LOCK:%d  MER:%d  OBER:%d  OBG:%d  OBWRE:%d  PER:%d  PG:%d  STRT:%d\n",
-         r.b.LOCK, r.b.MER, r.b.OBER, r.b.OBG, r.b.OBWRE, r.b.PER, r.b.PG, r.b.STRT);
+  printf("  LOCK:%d  MER:%d  OBER:%d  OBPG:%d  OBWRE:%d  PER:%d  PG:%d  STRT:%d\n",
+         r.b.LOCK, r.b.MER, r.b.OBER, r.b.OBPG, r.b.OBWRE, r.b.PER, r.b.PG, r.b.STRT);
 }
 
 //------------------------------------------------------------------------------

@@ -29,6 +29,6 @@ void boot_pico(void);
 #define BOOT_KEYR  0x40022028
 
 inline bool boot_set_keyr(uint32_t reg) {
-  return ctx_set_mem_u32_aligned(BOOT_KEYR, reg); }
+  return ctx_set_mem32_aligned(BOOT_KEYR, reg); }
 
 //------------------------------------------------------------------------------

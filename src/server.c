@@ -306,14 +306,14 @@ void server_handle_m(void) {
   while (len > 0) {
     if (len == 2) {
       uint16_t data;
-      if (!ctx_get_mem_u16(src, &data))
+      if (!ctx_get_mem16(src, &data))
         return;
       packet_put_hex_u16(&send, data);
       src += 2;
       len -= 2;
     } else if (len == 4) {
       uint32_t data;
-      if (!ctx_get_mem_u32(src, &data))
+      if (!ctx_get_mem32(src, &data))
         return;
       packet_put_hex_u32(&send, data);
       src += 4;
@@ -330,7 +330,7 @@ void server_handle_m(void) {
       len -= chunk;
     } else {
       uint8_t data;
-      if (!ctx_get_mem_u8(src, &data))
+      if (!ctx_get_mem8(src, &data))
         return;
 
       packet_put_hex_u8(&send, data);
@@ -375,7 +375,7 @@ void server_handle_M(void) {
       len -= chunk;
     } else {
       uint8_t x = (uint8_t)packet_take_hex_digits(&recv, 8);
-      ctx_set_mem_u8(dst, x);
+      ctx_set_mem8(dst, x);
       dst += 1;
       len -= 1;
     }

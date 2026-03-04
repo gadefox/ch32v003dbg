@@ -90,7 +90,6 @@ inline void print_status(bool status) {
 // Decimal
 
 inline void decxx_str(char *s, uint8_t d) {
-  CHECK(d < 100);
   if (d >= 10)
     *s++ = d / 10 + '0';
   *s++ = d % 10 + '0';

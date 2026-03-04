@@ -32,22 +32,22 @@ bool ctx_write_reg(uint16_t regno, uint32_t value);
 
 //----------
 // Memory access
-bool ctx_get_mem_u32(uint32_t addr, uint32_t *data);
-bool ctx_set_mem_u32(uint32_t addr, uint32_t data);
+bool ctx_get_mem32_aligned(uint32_t addr, uint32_t *data);
+bool ctx_set_mem32_aligned(uint32_t addr, uint32_t data);
 
-bool ctx_get_mem_u16(uint32_t addr, uint16_t* data);
-bool ctx_set_mem_u16(uint32_t addr, uint16_t data);
+bool ctx_get_mem32(uint32_t addr, uint32_t *data);
+bool ctx_set_mem32(uint32_t addr, uint32_t data);
 
-bool ctx_get_mem_u8(uint32_t addr, uint8_t *data);
-bool ctx_set_mem_u8(uint32_t addr, uint8_t data);
+bool ctx_get_mem16(uint32_t addr, uint16_t* data);
+bool ctx_set_mem16(uint32_t addr, uint16_t data);
+
+bool ctx_get_mem8(uint32_t addr, uint8_t *data);
+bool ctx_set_mem8(uint32_t addr, uint8_t data);
 
 //----------
-// Bulk memory access
+// Bulk memory access (aligned)
 bool ctx_get_block_aligned(uint32_t addr, uint32_t *data, size_t count);
 bool ctx_set_block_aligned(uint32_t addr, uint32_t *data, size_t count);
-
-bool ctx_get_mem_u32_aligned(uint32_t addr, uint32_t *data);
-bool ctx_set_mem_u32_aligned(uint32_t addr, uint32_t data);
 
 void ctx_test(void);
 
@@ -320,25 +320,19 @@ typedef enum {
   CAUSE_RESET   = 5
 } dcsr_cause_t;
 
+
 #define CSR_DCSR  0x7B0
 
-#define DCSR_PRV_M_USER     0b00
-#define DCSR_PRV_M_MACHINE  0b11
+#define DCSR_CAUSE_POS      6
+#define DCSR_XDEBUGVER_POS  28
 
 #define DCSR_STEP           (1u << 2)
-
-#define DCSR_CAUSE_EBREAK   (CAUSE_EBREAK  << 6)
-#define DCSR_CAUSE_TRIGGER  (CAUSE_TRIGGER << 6)
-#define DCSR_CAUSE_HALTREQ  (CAUSE_HALTREQ << 6)
-#define DCSR_CAUSE_STEP     (CAUSE_STEP    << 6)
-#define DCSR_CAUSE_RESET    (CAUSE_RESET   << 6)
-
+#define DCSR_CAUSE(c)       (((c) & 7) << DCSR_CAUSE_POS)
 #define DCSR_STOPTIME       (1u << 9)
 #define DCSR_STEPIE         (1u << 11)
 #define DCSR_EBREAKU        (1u << 12)
 #define DCSR_EBREAKM        (1u << 15)
-
-#define DCSR_XDEBUGVER(v)   (((v) & 0xF) << 28)
+#define DCSR_XDEBUGVER(v)   (((v) & 0xF) << DCSR_XDEBUGVER_POS)
 
 typedef union {
   uint32_t raw;

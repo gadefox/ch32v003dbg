@@ -21,8 +21,8 @@ typedef union {
 _Static_assert(sizeof(flash_actlr) == 4, "flash_actlr");
 
 void flash_actlr_dump(flash_actlr r);
-inline bool flash_set_actlr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_ACTLR, value); }
-inline bool flash_get_actlr(flash_actlr *actlr) { return ctx_get_mem_u32_aligned(FLASH_ACTLR, &actlr->raw); }
+inline bool flash_set_actlr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_ACTLR, value); }
+inline bool flash_get_actlr(flash_actlr *actlr) { return ctx_get_mem32_aligned(FLASH_ACTLR, &actlr->raw); }
 
 //------------------------------------------------------------------------------
 // FPEC key register
@@ -32,7 +32,7 @@ inline bool flash_get_actlr(flash_actlr *actlr) { return ctx_get_mem_u32_aligned
 
 #define FLASH_KEYR  0x40022004
 
-inline bool flash_set_keyr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_KEYR, value); }
+inline bool flash_set_keyr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_KEYR, value); }
 
 //------------------------------------------------------------------------------
 // Status register
@@ -62,8 +62,8 @@ typedef union {
 _Static_assert(sizeof(flash_statr) == 4, "flash_statr");
 
 void flash_statr_dump(flash_statr r);
-inline bool flash_set_statr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_STATR, value); }
-inline bool flash_get_statr(flash_statr *statr) { return ctx_get_mem_u32_aligned(FLASH_STATR, &statr->raw); }
+inline bool flash_set_statr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_STATR, value); }
+inline bool flash_get_statr(flash_statr *statr) { return ctx_get_mem32_aligned(FLASH_STATR, &statr->raw); }
 
 //------------------------------------------------------------------------------
 // Configuration register
@@ -73,7 +73,7 @@ inline bool flash_get_statr(flash_statr *statr) { return ctx_get_mem_u32_aligned
 #define CTLR_PG       (1u << 0)
 #define CTLR_PER      (1u << 1)
 #define CTLR_MER      (1u << 2)
-#define CTLR_OBG      (1u << 4)
+#define CTLR_OBPG     (1u << 4)
 #define CTLR_OBER     (1u << 5)
 #define CTLR_STRT     (1u << 6)
 #define CTLR_LOCK     (1u << 7)
@@ -93,7 +93,7 @@ typedef union {
     uint32_t PER     : 1;  // [1]      Perform sector erase
     uint32_t MER     : 1;  // [2]      Perform full erase
     uint32_t PAD0    : 1;  // [3]
-    uint32_t OBG     : 1;  // [4]      Perform user-selected word programming
+    uint32_t OBPG    : 1;  // [4]      Perform user-selected word programming
     uint32_t OBER    : 1;  // [5]      Perform user-selected word erasure
     uint32_t STRT    : 1;  // [6]      Start
     uint32_t LOCK    : 1;  // [7]      Flash lock status
@@ -115,15 +115,15 @@ typedef union {
 _Static_assert(sizeof(flash_ctlr) == 4, "flash_ctlr");
 
 void flash_ctlr_dump(flash_ctlr r);
-inline bool flash_set_ctlr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_CTLR, value); }
-inline bool flash_get_ctlr(flash_ctlr *ctlr) { return ctx_get_mem_u32_aligned(FLASH_CTLR, &ctlr->raw); }
+inline bool flash_set_ctlr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_CTLR, value); }
+inline bool flash_get_ctlr(flash_ctlr *ctlr) { return ctx_get_mem32_aligned(FLASH_CTLR, &ctlr->raw); }
 
 //------------------------------------------------------------------------------
 // Address register
 
 #define FLASH_ADDR  0x40022014
 
-inline bool flash_set_addr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_ADDR, value); }
+inline bool flash_set_addr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_ADDR, value); }
 
 //------------------------------------------------------------------------------
 // Option byte register
@@ -151,21 +151,21 @@ _Static_assert(sizeof(flash_obr) == 4, "flash_obr");
 
 void flash_obr_dump(flash_obr r);
 
-inline bool flash_get_obr(flash_obr *obr) { return ctx_get_mem_u32_aligned(FLASH_OBR, &obr->raw); }
+inline bool flash_get_obr(flash_obr *obr) { return ctx_get_mem32_aligned(FLASH_OBR, &obr->raw); }
 
 //------------------------------------------------------------------------------
 // Write protection register
 
 #define FLASH_WPR  0x40022020
 
-inline bool flash_get_wpr(uint32_t *value) { return ctx_get_mem_u32_aligned(FLASH_WPR, value); }
+inline bool flash_get_wpr(uint32_t *value) { return ctx_get_mem32_aligned(FLASH_WPR, value); }
 
 //------------------------------------------------------------------------------
 // Extended key register
 
 #define FLASH_MODEKEYR  0x40022024
 
-inline bool flash_set_mode_keyr(uint32_t value) { return ctx_set_mem_u32_aligned(FLASH_MODEKEYR, value); }
+inline bool flash_set_mode_keyr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_MODEKEYR, value); }
 
 //==============================================================================
 // API
@@ -190,15 +190,20 @@ int flash_fastprog_locked(void);
 int flash_fastprog_lock(void);
 int flash_fastprog_unlock(void);
 
+bool flash_status_wait(void);
+bool flash_start(uint32_t ctlr);
+
 // Flash erase, addresses must be aligned
 bool flash_erase(uint32_t addr, uint32_t ctlr);
 
-// Timeout < 4 ms
-inline bool flash_erase_page(uint32_t addr) { return flash_erase(addr, CTLR_FTER); }
-inline bool flash_erase_chip(void) { return flash_erase(CH32_FLASH_ADDR, CTLR_MER); }
+inline bool flash_erase_page(uint32_t addr) {
+  return flash_erase(addr, CTLR_OBWRE | CTLR_FTER); }  // Timeout < 4 ms
 
-// Timeout < 51 ms
-inline bool flash_erase_sector(uint32_t addr) { return flash_erase(addr, CTLR_PER); }
+inline bool flash_erase_sector(uint32_t addr) {
+  return flash_erase(addr, CTLR_OBWRE | CTLR_PER); }   // Timeout < 51 ms
+
+inline bool flash_erase_chip(void) {
+  return flash_erase(CH32_FLASH_ADDR, CTLR_OBWRE | CTLR_MER); }  // Timeout < 4 ms
 
 // Flash write, dest address must be aligned & size must be a multiple of 4
 bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count);

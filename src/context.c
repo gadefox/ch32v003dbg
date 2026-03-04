@@ -136,7 +136,7 @@ void ctx_load_prog(const uint32_t *prog, uint8_t size) {
 static bool test_write_seq(uint32_t addr) {
   // Fill memory with incrementing byte pattern 0x00..0x0F
   for (int i = 0; i < 16; i++) {
-    if (!ctx_set_mem_u8(addr + i, i))
+    if (!ctx_set_mem8(addr + i, i))
       return false;
   }
   return true;
@@ -148,7 +148,7 @@ static bool test_read_seq(uint32_t addr) {
   // Read memory with incrementing byte pattern 0x00..0x0F
   for (int i = 0; i < 16; i++) {
     uint8_t byte;
-    if (!ctx_get_mem_u8(addr + i, &byte))
+    if (!ctx_get_mem8(addr + i, &byte))
       return false;
     if (byte != i)
       return false;
@@ -174,14 +174,14 @@ static void test_misaligned_reads(uint32_t base) {
     // Read shorts
     for (int i = 0; i < 8; i++) {
       uint16_t word;
-      if (!ctx_get_mem_u16(addr + i * 2, &word))  goto result;
+      if (!ctx_get_mem16(addr + i * 2, &word))  goto result;
       if (word != 0x0100 + i * 0x0202)            goto result;
     }
 
     // Read words
     for (int i = 0; i < 4; i++) {
       uint32_t dword;
-      if (!ctx_get_mem_u32(addr + i * 4, &dword)) goto result;
+      if (!ctx_get_mem32(addr + i * 4, &dword)) goto result;
       if (dword != 0x03020100 + i * 0x04040404)   goto result;
     }
 
@@ -208,12 +208,12 @@ static void test_misaligned_writes(uint32_t base) {
 
     // Write shorts
     for (int i = 0; i < 8; i++)
-      if (!ctx_set_mem_u16(addr + i * 2, 0x0100 + i * 0x0202)) goto result;
+      if (!ctx_set_mem16(addr + i * 2, 0x0100 + i * 0x0202)) goto result;
     if (!test_read_seq(addr))                                  goto result;
 
     // Read words
     for (int i = 0; i < 4; i++)
-      if (!ctx_set_mem_u32(addr + i * 4, 0x03020100 + i * 0x04040404)) goto result;
+      if (!ctx_set_mem32(addr + i * 4, 0x03020100 + i * 0x04040404)) goto result;
     if (!test_read_seq(addr))                                  goto result;
 
     result = true;
@@ -227,7 +227,7 @@ result:
 
 static inline bool test_write_const(uint32_t addr, size_t count) {
   for (size_t i = 0; i < count; i++) {
-    if (!ctx_set_mem_u8(addr + i, 0xAB))
+    if (!ctx_set_mem8(addr + i, 0xAB))
       return false;
   }
   return true;
@@ -238,7 +238,7 @@ static inline bool test_write_const(uint32_t addr, size_t count) {
 static inline bool test_read_const(uint32_t addr, size_t count) {
   for (size_t i = 0; i < count; i++) {
     uint8_t byte;
-    if (!ctx_get_mem_u8(addr + i, &byte))
+    if (!ctx_get_mem8(addr + i, &byte))
       return false;
     if (byte != 0xAB)
       return false;
@@ -336,7 +336,7 @@ static void test_addr(uint32_t addr, bool expected) {
   printf("  addr: %08X, expected: %d", addr, expected);
 
   uint32_t data;
-  if (ctx_get_mem_u32_aligned(addr, &data))
+  if (ctx_get_mem32_aligned(addr, &data))
     print_status(true);
 }
 
@@ -630,10 +630,10 @@ bool ctx_write_reg(uint16_t regno, uint32_t value) {
 //==============================================================================
 // Memory access - GET
 
-bool ctx_get_mem_u32(uint32_t addr, uint32_t* data) {
+bool ctx_get_mem32(uint32_t addr, uint32_t* data) {
   uint32_t data_lo;
   uint32_t addr_lo = addr & ~3;
-  if (!ctx_get_mem_u32_aligned(addr_lo, &data_lo))
+  if (!ctx_get_mem32_aligned(addr_lo, &data_lo))
     return false;
 
   uint8_t offset = addr & 3;
@@ -643,7 +643,7 @@ bool ctx_get_mem_u32(uint32_t addr, uint32_t* data) {
   }
 
   uint32_t data_hi;
-  if (!ctx_get_mem_u32_aligned(addr_lo + 4, &data_hi))
+  if (!ctx_get_mem32_aligned(addr_lo + 4, &data_hi))
     return false;
 
   offset *= 8;
@@ -656,10 +656,10 @@ bool ctx_get_mem_u32(uint32_t addr, uint32_t* data) {
 
 //------------------------------------------------------------------------------
 
-bool ctx_get_mem_u16(uint32_t addr, uint16_t *data) {
+bool ctx_get_mem16(uint32_t addr, uint16_t *data) {
   uint32_t data_lo;
   uint32_t addr_lo = addr & ~3;
-  if (!ctx_get_mem_u32_aligned(addr_lo, &data_lo))
+  if (!ctx_get_mem32_aligned(addr_lo, &data_lo))
     return false;
 
   uint8_t offset = addr & 3;
@@ -674,7 +674,7 @@ bool ctx_get_mem_u16(uint32_t addr, uint16_t *data) {
   data_lo >>= 24;
 
   uint32_t data_hi;
-  if (!ctx_get_mem_u32_aligned(addr_lo + 4, &data_hi))
+  if (!ctx_get_mem32_aligned(addr_lo + 4, &data_hi))
     return false;
 
   data_hi <<= 8;
@@ -685,9 +685,9 @@ bool ctx_get_mem_u16(uint32_t addr, uint16_t *data) {
 
 //------------------------------------------------------------------------------
 
-bool ctx_get_mem_u8(uint32_t addr, uint8_t *data) {
+bool ctx_get_mem8(uint32_t addr, uint8_t *data) {
   uint32_t data_lo;
-  if (!ctx_get_mem_u32_aligned(addr & ~3, &data_lo))
+  if (!ctx_get_mem32_aligned(addr & ~3, &data_lo))
     return false;
 
   uint8_t offset = (addr & 3) * 8;
@@ -698,19 +698,19 @@ bool ctx_get_mem_u8(uint32_t addr, uint8_t *data) {
 //==============================================================================
 // Memory access - SET
 
-bool ctx_set_mem_u32(uint32_t addr, uint32_t data) {
+bool ctx_set_mem32(uint32_t addr, uint32_t data) {
   uint8_t offset = addr & 3;
   if (offset == 0)
-    return ctx_set_mem_u32_aligned(addr, data);
+    return ctx_set_mem32_aligned(addr, data);
 
   uint32_t data_lo;
   uint32_t addr_lo = addr & ~3;
-  if (!ctx_get_mem_u32_aligned(addr_lo, &data_lo))
+  if (!ctx_get_mem32_aligned(addr_lo, &data_lo))
     return false;
 
   uint32_t data_hi;
   uint32_t addr_hi = addr_lo + 4;
-  if (!ctx_get_mem_u32_aligned(addr_hi, &data_hi))
+  if (!ctx_get_mem32_aligned(addr_hi, &data_hi))
     return false;
 
   switch (offset) {
@@ -733,16 +733,16 @@ bool ctx_set_mem_u32(uint32_t addr, uint32_t data) {
       data_hi |= data >> 8;   // 24+8=32
   }
 
-  return ctx_set_mem_u32_aligned(addr_lo, data_lo) &&
-         ctx_set_mem_u32_aligned(addr_hi, data_hi);
+  return ctx_set_mem32_aligned(addr_lo, data_lo) &&
+         ctx_set_mem32_aligned(addr_hi, data_hi);
 }
 
 //------------------------------------------------------------------------------
 
-bool ctx_set_mem_u16(uint32_t addr, uint16_t data) {
+bool ctx_set_mem16(uint32_t addr, uint16_t data) {
   uint32_t data_lo;
   uint32_t addr_lo = addr & ~3;
-  if (!ctx_get_mem_u32_aligned(addr_lo, &data_lo))
+  if (!ctx_get_mem32_aligned(addr_lo, &data_lo))
     return false;
 
   uint32_t offset = addr & 3;
@@ -764,7 +764,7 @@ bool ctx_set_mem_u16(uint32_t addr, uint16_t data) {
       data_lo |= (uint32_t)data << 24;
   }
 
-  if (!ctx_set_mem_u32_aligned(addr_lo, data_lo))
+  if (!ctx_set_mem32_aligned(addr_lo, data_lo))
     return false;
 
   if (offset != 3)
@@ -772,20 +772,20 @@ bool ctx_set_mem_u16(uint32_t addr, uint16_t data) {
 
   uint32_t data_hi;
   uint32_t addr_hi = addr_lo + 4;
-  if (!ctx_get_mem_u32_aligned(addr_hi, &data_hi))
+  if (!ctx_get_mem32_aligned(addr_hi, &data_hi))
     return false;
 
   data_hi &= 0xFFFFFF00;
   data_hi |= HIBYTE(data);
-  return ctx_set_mem_u32_aligned(addr_hi, data_hi);
+  return ctx_set_mem32_aligned(addr_hi, data_hi);
 }
 
 //------------------------------------------------------------------------------
 
-bool ctx_set_mem_u8(uint32_t addr, uint8_t data) {
+bool ctx_set_mem8(uint32_t addr, uint8_t data) {
   uint32_t data_lo;
   uint32_t addr_lo = addr & ~3;
-  if (!ctx_get_mem_u32_aligned(addr_lo, &data_lo))
+  if (!ctx_get_mem32_aligned(addr_lo, &data_lo))
     return false;
 
   switch (addr & 3) {
@@ -806,7 +806,7 @@ bool ctx_set_mem_u8(uint32_t addr, uint8_t data) {
       data_lo |= (uint32_t)data << 24;
   }
 
-  return ctx_set_mem_u32_aligned(addr_lo, data_lo);
+  return ctx_set_mem32_aligned(addr_lo, data_lo);
 }
 
 //------------------------------------------------------------------------------
@@ -832,9 +832,9 @@ static uint16_t prog_get_set_u32[] = {
 
 //------------------------------------------------------------------------------
 
-bool ctx_get_mem_u32_aligned(uint32_t addr, uint32_t *data) {
+bool ctx_get_mem32_aligned(uint32_t addr, uint32_t *data) {
 #if PROG_DUMP
-  print_c("get32: %08X\n", addr);
+  print_c("get mem %08X\n", addr);
 #endif
 
   ctx_load_prog((uint32_t *)prog_get_set_u32, sizeof(prog_get_set_u32) / 4);
@@ -852,9 +852,9 @@ bool ctx_get_mem_u32_aligned(uint32_t addr, uint32_t *data) {
 
 //------------------------------------------------------------------------------
 
-bool ctx_set_mem_u32_aligned(uint32_t addr, uint32_t data) {
+bool ctx_set_mem32_aligned(uint32_t addr, uint32_t data) {
 #if PROG_DUMP
-  print_c("set32: %08X\n", addr);
+  print_c("set mem %08X\n", addr);
 #endif
 
   ctx_load_prog((uint32_t *)prog_get_set_u32, sizeof(prog_get_set_u32) / 4);
