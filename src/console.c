@@ -489,12 +489,12 @@ static void console_option_erase(void) {
 
 //------------------------------------------------------------------------------
 
-static void console_option_write(const char *name, uint32_t offset, size_t count, size_t max, int def) {
+static void console_option_write(const char *name, uint32_t offset, size_t count, size_t max, int defval) {
   print_y(0, "option:write %s\n", name);
   if (!ctx_halted_err("write option bytes"))
     return;
 
-  int value = console_take_value(def, max);
+  int value = console_take_value(defval, max);
   if (value != -1) {
     bool status = optb_write(offset, (uint8_t *)&value, count);
     print_status(status);
@@ -507,16 +507,16 @@ static void console_option_rdpr(void) {
   console_option_write("rdpr", 0, 1, 0xFF, 0xA5); }
 
 static void console_option_user(void) {
-  console_option_write("user", 2, 1, 0xFF, 0xFF); }
+  console_option_write("user", 2, 1, 0xFF, -1); }
 
 static void console_option_data(void) {
-  console_option_write("data0", 4, 2, 0xFFFF, 0xFFFF); }
+  console_option_write("data0", 4, 2, 0xFFFF, -1); }
 
 static void console_option_wrpr0(void) {
-  console_option_write("wrpr0", 8, 2, 0xFFFF, 0xFFFF); }
+  console_option_write("wrpr0", 8, 2, 0xFFFF, -1); }
 
 static void console_option_wrpr1(void) {
-  console_option_write("wrpr1", 12, 2, 0xFFFF, 0xFFFF); }
+  console_option_write("wrpr1", 12, 2, 0xFFFF, -1); }
 
 //------------------------------------------------------------------------------
 
