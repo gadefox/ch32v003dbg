@@ -285,14 +285,40 @@ void flash_ctlr_dump(flash_ctlr r) {
          r.b.LOCK, r.b.MER, r.b.OBER, r.b.OBPG, r.b.OBWRE, r.b.PER, r.b.PG, r.b.STRT);
 }
 
+//==============================================================================
+
+void flash_rst_mode_dump(rst_mode_t rst_mode) {
+  const char *desc, *state;
+
+  print_b(2, "reset mode");
+  printf(": multiplexing ");
+
+  if (rst_mode == RST_MODE_GPIO)
+    printf("disabled; PD7 as an I/O pin");
+  else {
+    printf("enabled; duration at least ");
+
+    const char *delay;
+    switch (rst_mode) {
+      case RST_MODE_MUX128: delay = "128 us"; break;
+      case RST_MODE_MUX1:   delay = "1 ms";   break;
+      case RST_MODE_MUX12:  delay = "12 ms";  break;
+      default:              delay = "?";
+    }
+    printf(delay);
+  }
+  putchar('\n');
+}
+
 //------------------------------------------------------------------------------
 
 void flash_obr_dump(flash_obr r) {
   print_hex(0, "OBR", r.raw);
+  flash_rst_mode_dump(r.b.RST_MODE);
   printf("  DATA0:%02X  DATA1:%02X  IWDG_SW:%d  OBERR:%d\n",
          r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR);
-  printf("  RDPRT:%d  RST_MODE:%d  STANDBY_RST:%d  START_MODE:%d\n",
-         r.b.RDPRT, r.b.RST_MODE, r.b.STANDBY_RST, r.b.START_MODE);
+  printf("  RDPRT:%d  STANDBY_RST:%d  START_MODE:%d\n",
+         r.b.RDPRT, r.b.STANDBY_RST, r.b.START_MODE);
 }
 
 //------------------------------------------------------------------------------

@@ -130,6 +130,15 @@ inline bool flash_set_addr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_
 
 #define FLASH_OBR  0x4002201C
 
+typedef enum {
+  RST_MODE_MUX128,
+  RST_MODE_MUX1,
+  RST_MODE_MUX12,
+  RST_MODE_GPIO
+} rst_mode_t;
+
+void flash_rst_mode_dump(rst_mode_t rst_mode);
+
 typedef union {
   uint32_t raw;
   struct {

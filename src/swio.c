@@ -435,7 +435,7 @@ void dm_hartinfo_dump(dm_hartinfo r) {
 //==============================================================================
 
 bool dm_abstractcs_wait(void) {
-  for (int i = 0; i < 40; i++) {  // timeout 2 ms
+  for (int i = 0; i < 80; i++) {  // timeout 4 ms
     dm_abstractcs abstractcs = dm_get_abstractcs();
     if (abstractcs.raw & DMA_BUSY) {
       sleep_us(50);
@@ -501,7 +501,7 @@ static void dm_command_type_dump(dm_cmdtype cmdtype) {
     case DM_ACCESS_REG:   desc = "access register";  break;
     case DM_ACCESS_QUICK: desc = "quick access";     break;
     case DM_ACCESS_MEM:   desc = "access to memory"; break;
-    default:                 desc = "?";
+    default:              desc = "?";
   }
 
   print_str(2, "abstract command type", desc);
@@ -518,7 +518,7 @@ static void dm_command_aarsize_dump(dm_aarsize aarsize) {
     case AARSIZE32:  desc = "32-bit";  break;
     case AARSIZE64:  desc = "64-bit";  break;
     case AARSIZE128: desc = "128-bit"; break;
-    default:             desc = "?";
+    default:         desc = "?";
   }
 
   print_str(2, "access register data bit width", desc);

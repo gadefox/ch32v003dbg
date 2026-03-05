@@ -1196,7 +1196,7 @@ const char *csr_name(uint16_t csr) {
 
 static void csr_dcsr_cause_dump(dcsr_cause_t cause) {
   const char *desc;
- 
+
   switch (cause) {
     case CAUSE_EBREAK:  desc = "ebreak";       break;
     case CAUSE_TRIGGER: desc = "trigger";      break;

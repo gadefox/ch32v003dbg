@@ -109,9 +109,9 @@ void optb_dump(void) {
       optb_wrpr_dump(i + 1, wrpr);
   }
 
-  optb_user user;
-  if (optb_get_user(&user))
-    optb_user_dump(user);
+  optb_rpdruser rpdruser;
+  if (optb_get_rpdruser(&rpdruser))
+    optb_rpdruser_dump(rpdruser);
 
   optb_data data;
   if (optb_get_data(&data))
@@ -121,12 +121,14 @@ void optb_dump(void) {
 //==============================================================================
 // Option bytes registers (memory-mapped I/O)
 
-void optb_user_dump(optb_user r) {
-  print_hex(0, "USER", r.raw);
-  printf("  IWDGSW:%d   RDPR:%02X   RST_MODE:%d   STANDYRST:%d   START_MODE:%d\n",
-         r.b.IWDGSW, r.b.RDPR, r.b.RST_MODE, r.b.STANDYRST, r.b.START_MODE);
-  printf(" nIWDGSW:%d  nRDPR:%02X  nRST_MODE:%d  nSTANDYRST:%d  nSTART_MODE:%d\n",
-         r.b.nIWDGSW, r.b.nRDPR, r.b.nRST_MODE, r.b.nSTANDYRST, r.b.nSTART_MODE);
+void optb_rpdruser_dump(optb_rpdruser r) {
+  print_hex(0, "RPDR", LOWORD(r.raw));
+  printf("  RDPR:%02X  nRDPR:%02X\n", r.b.RDPR, r.b.nRDPR);
+
+  print_hex(0, "USER", HIWORD(r.raw));
+  flash_rst_mode_dump(r.b.RST_MODE);
+  printf("  IWDGSW:%d  nIWDGSW:%d  STANDYRST:%d  nSTANDYRST:%d  START_MODE:%d  nSTART_MODE:%d\n",
+         r.b.IWDGSW, r.b.nIWDGSW, r.b.STANDYRST, r.b.nSTANDYRST, r.b.START_MODE, r.b.nSTART_MODE);
 }
 
 //------------------------------------------------------------------------------

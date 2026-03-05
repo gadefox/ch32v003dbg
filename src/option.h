@@ -26,14 +26,7 @@ inline bool optb_erase(void) { return flash_start(CTLR_OBWRE | CTLR_OBER); }
 
 //------------------------------------------------------------------------------
 
-#define OPTB_USER  OPTB_ADDR
-
-typedef enum {
-  RST_MODE_MUX128,
-  RST_MODE_MUX1,
-  RST_MODE_MUX12,
-  RST_MODE_GPIO
-} rst_mode_t;
+#define OPTB_RPDRUSER  OPTB_ADDR
 
 #define OPT_USER_RST_MODE_POS  19
 
@@ -59,13 +52,13 @@ typedef union {
     uint32_t nSTART_MODE : 1;  // [29]
     uint32_t PAD3        : 2;  // [31:30]
   } b;
-} optb_user;
+} optb_rpdruser;
 
-_Static_assert(sizeof(optb_user) == 4, "optb_user");
+_Static_assert(sizeof(optb_rpdruser) == 4, "optb_rpdruser");
 
-void optb_user_dump(optb_user r);
-inline bool optb_set_user(uint32_t value) { return ctx_set_mem32_aligned(OPTB_USER, value); }
-inline bool optb_get_user(optb_user *user) { return ctx_get_mem32_aligned(OPTB_USER, &user->raw); }
+void optb_rpdruser_dump(optb_rpdruser r);
+inline bool optb_get_rpdruser(optb_rpdruser *rpdruser) {
+  return ctx_get_mem32_aligned(OPTB_RPDRUSER, &rpdruser->raw); }
 
 //------------------------------------------------------------------------------
 
@@ -84,8 +77,8 @@ typedef union {
 _Static_assert(sizeof(optb_data) == 4, "optb_data");
 
 void optb_data_dump(optb_data r);
-inline bool optb_set_data(uint32_t value) { return ctx_set_mem32_aligned(OPTB_DATA, value); }
-inline bool optb_get_data(optb_data *data) { return ctx_get_mem32_aligned(OPTB_DATA, &data->raw); }
+inline bool optb_get_data(optb_data *data) {
+  return ctx_get_mem32_aligned(OPTB_DATA, &data->raw); }
 
 //------------------------------------------------------------------------------
 
@@ -104,8 +97,8 @@ typedef union {
 _Static_assert(sizeof(optb_wrpr) == 4, "optb_wrpr");
 
 void optb_wrpr_dump(uint8_t, optb_wrpr r);
-inline bool optb_set_wrpr(uint8_t i, uint32_t value) { return ctx_set_mem32_aligned(OPTB_WRPR + i * 4, value); }
-inline bool optb_get_wrpr(uint8_t i, optb_wrpr *wrpr) { return ctx_get_mem32_aligned(OPTB_WRPR + i * 4, &wrpr->raw); }
+inline bool optb_get_wrpr(uint8_t i, optb_wrpr *wrpr) {
+  return ctx_get_mem32_aligned(OPTB_WRPR + i * 4, &wrpr->raw); }
 
 //==============================================================================
 // Option bytes area registers (memory-mapped I/O)
