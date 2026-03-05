@@ -130,78 +130,73 @@ inline bool flash_erase(uint32_t addr, uint32_t ctlr) {
 // the buffer fills. This avoids needing an on-chip buffer at the cost of having
 // to do some assembly programming in the debug module.
 
-// FIXME: somehow the first write after debugger restart fails on the first word...
+const uint16_t stub_write[] = {
+  0x4188,          // c.lw   a0, 0(a1)            ; a0 = DM_DATA0
+  0xC008,          // c.sw   a0, 0(s0)            ; *s0 = a0
+  0xC890,          // c.sw   a2, 16(s1)           ; FLASH_CTLR = BUFLOAD | FTPG | OBWRE
 
-// good - 0x19e0006f
-// bad  - 0x00010040
+  // loop1: wait for copy to complete
+  0x44C8,          // c.lw   a0, 12(s1)           ; Load FLASH_STATR
+  0x8905,          // c.andi a0, 1                ; Check BUSY bit
+  0xFD75,          // c.bnez a0, -4               ; Loop if still busy
 
-const uint16_t prog_write[] = {
-  // Copy word and trigger BUFLOAD
-  0x4180,          // lw   s0, 0(a1)            // Load word from DM_DATA0
-  0xC200,          // sw   s0, 0(a2)            // Store to destination address
-  0xC914,          // sw   a3, 16(a0)           // FLASH_CTLR = FTPG | BUFLOAD
+  0x0411,          // c.addi s0, 4                ; addr += 4
+  0x7513, 0x03F4,  // andi   a0, s0, 63           ; Check lower 6 bits
+  0xE519,          // c.bnez a0, 14               ; If not page boundary, done
+  0xC894,          // c.sw   a3, 16(s1)           ; FLASH_CTLR = STRT | FTPG | OBWRE
 
-  // waitloop1: Busywait for copy to complete - this seems to be required now?
-  0x4540,          // lw   s0, 12(a0)           // Load FLASH_STATR
-  0x8805,          // andi s0, s0, 1            // Check BUSY bit
-  0xFC75,          // bnez s0, <waitloop1>      // Loop if still busy
+  // loop2: wait for page write to complete
+  0x44C8,          // c.lw   a0, 12(s1)           ; Load FLASH_STATR
+  0x8905,          // c.andi a0, 1                ; Check BUSY bit
+  0xFD75,          // c.bnez a0, -4               ; Loop if still busy
 
-  // Advance dest pointer and trigger START if we ended a page
-  0x0611,          // addi a2, a2, 4            // dst_addr += 4
-  0x7413, 0x03F6,  // andi s0, a2, 63           // Check lower 6 bits
-  0xE419,          // bnez s0, <end>            // If not page boundary, done
-  0xC918,          // sw   a4, 16(a0)           // FLASH_CTLR = FTPG | STRT
-
-  // waitloop2: Busywait for page write to complete
-  0x4540,          // lw   s0, 12(a0)           // Load FLASH_STATR
-  0x8805,          // andi s0, s0, 1            // Check BUSY bit
-  0xFC75,          // bnez s0, <waitloop2>      // Loop if still busy
-
-  // Reset buffer, don't need busywait as it'll complete before we send the next dword.
-  0xC91C,          // sw   a5, 16(a0)           // FLASH_CTLR = FTPG | BUFRST
-
-  // Update page address
-  0xC950           // sw   a2, 20(a0)           // FLASH_ADDR = new address
+  0xC898,          // c.sw   a4, 16(s1)           ; FLASH_CTLR = BUFRST | FTPG | OBWRE
+  0xC8C0           // c.sw   s0, 20(s1)           ; FLASH_ADDR = addr
 };
 
-_Static_assert(!(sizeof(prog_write) & 3), "prog_write");
+_Static_assert(!(sizeof(stub_write) & 3), "stub_write");
 
 //------------------------------------------------------------------------------
 // NOTE: Flash write must be page-aligned: word_count has to be a whole number of pages
  
 bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count) {
   CHECK(!(count % CH32_FLASH_PAGE_WORDS));
-  CHECK(!(addr & 3));
 
 #if PROG_DUMP
   print_c("flash write: addr=%08X size=%d\n", addr, count);
 #endif
 
+  print_c(0, "swio: %03X", dm_data_addr);
+
   if (!flash_set_addr(addr))                                 return false;
 
   flash_ctlr ctlr;
   if (!flash_get_ctlr(&ctlr))                                return false;
-  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST)) return false;
+  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG))               return false;
 
   bool ret = false;
-  ctx_load_prog((uint32_t *)prog_write, sizeof(prog_write) / 4);
-  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1) | GPRB(A2) | GPRB(A3) |
-        GPRB(A4) | GPRB(A5)))                                goto cleanup;
 
-  if (!gpr_set_a(0, FLASH_ACTLR))                            goto cleanup;
-  if (!gpr_set_a(1, DM_DATA_ADDR))                           goto cleanup;
-  if (!gpr_set_a(2, addr))                                   goto cleanup;
-  if (!gpr_set_a(3, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFLOAD))  goto cleanup;
-  if (!gpr_set_a(4, CTLR_OBWRE | CTLR_FTPG | CTLR_STRT))     goto cleanup;
-  if (!gpr_set_a(5, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST))   goto cleanup;
+  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST)) goto cleanup;
+  if (!flash_status_wait())                                  goto cleanup;
+
+  ctx_load_prog((uint32_t *)stub_write, sizeof(stub_write) / 4);
+  if (!gpr_cache_save(GPRB(S0) | GPRB(S1) | GPRB(A0) | GPRB(A1) | GPRB(A2) |
+        GPRB(A3) | GPRB(A4)))                                goto cleanup;
+
+  if (!gpr_set_s(0, addr))                                   goto cleanup;
+  if (!gpr_set_s(1, FLASH_ACTLR))                            goto cleanup;
+
+  if (!gpr_set_a(1, DM_DATA_BASE + dm_data_addr))            goto cleanup;
+  if (!gpr_set_a(2, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFLOAD))  goto cleanup;
+  if (!gpr_set_a(3, CTLR_OBWRE | CTLR_FTPG | CTLR_STRT))     goto cleanup;
+  if (!gpr_set_a(4, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST))   goto cleanup;
 
   // Flash words using auto-execution
   dm_set_abstractauto(DM_AUTOEXECDATA(1));
 
   for (size_t i = 0; i < count; i++) {
     dm_set_data0(data[i]);
-    if (!dm_abstractcs_wait())
-      goto cleanup;
+    if (!dm_abstractcs_wait())                               goto cleanup;
   }
 
   // Success
@@ -213,7 +208,6 @@ cleanup:
 
   // Restor FLASH control register
   (void)flash_set_ctlr(ctlr.raw);
-
   return ret;
 }
 

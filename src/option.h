@@ -6,6 +6,8 @@
 //==============================================================================
 // API
 
+void optb_set_stub_opcode(uint16_t opcode);
+
 int optb_is_unlocked(void);
 int optb_lock(void);
 int optb_unlock(void);
@@ -13,7 +15,7 @@ int optb_unlock(void);
 // Debug dump
 void optb_dump(void);
 
-bool optb_write(uint32_t addr, uint8_t *data, size_t count);
+bool optb_write(uint8_t offset, uint8_t *data, uint8_t count);
 inline bool optb_erase(void) { return flash_start(CTLR_OBWRE | CTLR_OBER); }
 
 //==============================================================================
@@ -26,6 +28,19 @@ inline bool optb_erase(void) { return flash_start(CTLR_OBWRE | CTLR_OBER); }
 
 #define OPTB_USER  OPTB_ADDR
 
+typedef enum {
+  RST_MODE_MUX128,
+  RST_MODE_MUX1,
+  RST_MODE_MUX12,
+  RST_MODE_GPIO
+} rst_mode_t;
+
+#define OPT_USER_RST_MODE_POS  19
+
+#define OPT_USER_IWDGSW      (1 << 16)
+#define OPT_USER_STANDYRST   (1 << 18)
+#define OPT_USER_START_MODE  (1 << 21)
+
 typedef union {
   uint32_t raw;
   struct {
@@ -35,7 +50,7 @@ typedef union {
     uint32_t PAD0        : 1;  // [17]
     uint32_t STANDYRST   : 1;  // [18]     System reset control in Standby mode
     uint32_t RST_MODE    : 2;  // [20:19]  PD7 alternate as external pin reset
-    uint32_t START_MODE  : 1;  // [21]     Power-on startup mode
+    uint32_t START_MODE  : 1;  // [21]     1=Boot from BOOT area; 0=Boot from user area
     uint32_t PAD1        : 2;  // [23:22]
     uint32_t nIWDGSW     : 1;  // [24]
     uint32_t PAD2        : 1;  // [25]

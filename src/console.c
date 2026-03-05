@@ -16,8 +16,24 @@ static packet pkt;
 
 //------------------------------------------------------------------------------
 
-void console_init(void) {
+inline void console_init(void) {
   packet_init(&pkt, 64);
+}
+
+//------------------------------------------------------------------------------
+
+static int console_take_value(int optional, size_t size) {
+  int value = packet_take_arg(&pkt, optional);
+
+  if (pkt.error || value < 0 || value > size) {
+    print_r(2, "bad value:");
+    if (pkt.error)
+      print_r(1, "expected numeric value\n");
+    else
+      print_r(1, "out of range (%04X)\n", size);
+    return -1;
+  }
+  return value;
 }
 
 //------------------------------------------------------------------------------
@@ -457,8 +473,7 @@ static void console_info_parse(void) {
 
 static void console_option_get(void) {
   uint8_t data[] = { 0xA5, 0x17 };
-  optb_unlock();
-  optb_write(0, data, 2);
+  optb_write(32, data, 2);
   return;
 
   print_y(0, "option:get\n");
@@ -475,6 +490,34 @@ static void console_option_erase(void) {
     print_status(status);
   }
 }
+
+//------------------------------------------------------------------------------
+
+static void console_option_write(const char *name, uint32_t addr) {
+  print_y(0, "option:write %s\n", name);
+  if (!ctx_halted_err("write option bytes"))
+    return;
+
+  int value = console_take_value(-1, 255);
+  if (value == -1)
+    return;
+
+  print_c(0, "-- %d\n", value);
+  uint8_t data = (uint8_t)value;
+  bool status = optb_write(addr, &data, 1);
+  print_status(status);
+}
+
+//------------------------------------------------------------------------------
+
+static void console_option_rdpr(void)  { console_option_write("rdpr",   0); }
+static void console_option_user(void)  { console_option_write("user",   2); }
+static void console_option_data0(void) { console_option_write("data0",  4); }
+static void console_option_data1(void) { console_option_write("data1",  6); }
+static void console_option_wrpr0(void) { console_option_write("wrpr0",  8); }
+static void console_option_wrpr1(void) { console_option_write("wrpr1", 10); }
+static void console_option_wrpr2(void) { console_option_write("wrpr2", 12); }
+static void console_option_wrpr3(void) { console_option_write("wrpr3", 14); }
 
 //------------------------------------------------------------------------------
 
@@ -501,9 +544,17 @@ static void console_option_unlock(void) {
 static const handler option_handlers[] = {
   { "info",   "i",  NULL,     optb_dump },
   { "get",    "g",  "offset", console_option_get },
-  { "erase",  "er", NULL,     console_option_erase },
   { "lock",   "lo", NULL,     console_option_lock },
-  { "unlock", "un", NULL,     console_option_unlock }
+  { "unlock", "un", NULL,     console_option_unlock },
+  { "erase",  "er", NULL,     console_option_erase },
+  { "rdpr",   "r",  "byte",   console_option_rdpr },
+  { "user",   "u",  "byte",   console_option_user },
+  { "data0",  "d0", "byte",   console_option_data0 },
+  { "data1",  "d1", "byte",   console_option_data1 },
+  { "wrpr0",  "w0", "byte",   console_option_wrpr0 },
+  { "wrpr1",  "w1", "byte",   console_option_wrpr1 },
+  { "wrpr2",  "w2", "byte",   console_option_wrpr2 },
+  { "wrpr3",  "w3", "byte",   console_option_wrpr3 }
 };
 
 //------------------------------------------------------------------------------

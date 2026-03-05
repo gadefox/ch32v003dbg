@@ -59,8 +59,6 @@ void dm_print(uint8_t addr, uint32_t raw);
 // Data registers, can be used for temporary storage of data
 
 #define DM_DATA_BASE    0xE0000000
-#define DM_DATA_OFFSET  0xF4
-#define DM_DATA_ADDR    (DM_DATA_BASE + DM_DATA_OFFSET)
 
 #define DM_DATA0  PIO_ADDR(0x04)             // 0xF6
 #define DM_DATA1  PIO_ADDR(0x05)             // 0xF4
@@ -80,6 +78,8 @@ inline uint32_t dm_get_data(uint8_t i) {
   return swio_get(DM_DATA(i)); }
 inline uint32_t dm_get_data0(void) { return dm_get_data(0); }
 inline uint32_t dm_get_data1(void) { return dm_get_data(1); }
+
+extern uint16_t dm_data_addr;
 
 //------------------------------------------------------------------------------
 // Debug module control register

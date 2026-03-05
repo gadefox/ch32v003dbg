@@ -10,6 +10,7 @@
 // API
 
 void ctx_init(void);
+void ctx_set_stub_opcode(uint16_t opcode);
 void ctx_dump(void);
 void ctx_dump_block(uint32_t offset, uint32_t addr_base, uint32_t total_size);
 

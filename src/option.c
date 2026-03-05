@@ -5,6 +5,32 @@
 
 //------------------------------------------------------------------------------
 
+static uint16_t stub_write[] = {
+  0x0437, 0xE000,  // lui    s0, DM_DATA_BASE[31:12]
+  0x0413, 0xFFFF,  // addi   s0, s0, DM_DATA_ADDR[11:0] ; s0 = 0xE00000F4
+  0x4008,          // c.lw   a0, 0(s0)                  ; a0 = *s0      (DATA0)
+  0x404C,          // c.lw   a1, 4(s0)                  ; a1 = *(s0+4)  (DATA1)
+  0x9023, 0x00A5,  // sh     a0, 0(a1)                  ; *(uint16_t)a1 = a0
+  0x0589,          // c.addi a1, 2                      ; a1 += 2
+  0xC04C,          // c.sw   a1, 4(s0)                  ; *(s0+4) = a1  (DATA1)
+  0x2437, 0x4002,  // lui    s0, FLASH_ACTLR[31:12]     ; s0 = 0x40022
+  // loop: wait for programming to complete
+  0x4448,          // c.lw   a0, 12(s0)                 ; a0 = *(s0+12)  (FLASH_STATR)
+  0x8905,          // c.andi a0, 1                      ; a0 &= 1        (BUSY)
+  0xFD75,          // c.bnez a0, -4                     ; If a0 == 1 -> goto loop
+  0x9002           // c.ebreak
+};
+
+_Static_assert(!(sizeof(stub_write) & 3), "stub_write");
+
+//------------------------------------------------------------------------------
+
+inline void optb_set_stub_opcode(uint16_t opcode) {
+  stub_write[3] = opcode;
+}
+
+//------------------------------------------------------------------------------
+
 inline int optb_is_unlocked(void) {
   flash_ctlr ctlr;
   if (!flash_get_ctlr(&ctlr))
@@ -34,46 +60,26 @@ int optb_unlock(void) {
 
 //------------------------------------------------------------------------------
 
-static uint16_t prog_write[] = {
-  0x0537, 0xE000,  // lui  a0, DM_DATA_BASE[31:12]
-  0x2583, 0x0F85,  // lw   a1, DM_DATA1_ADDR[11:0](a0)  // Load dest addr from DATA1
-  0x2603, 0x0F45,  // lw   a2, DM_DATA0_ADDR[11:0](a0)  // Load data from DATA0
-  0x9023, 0x00C5,  // sh   a2, 0(a1)                    // Write data to memory
-  0x0589,          // addi a1, a1, 2                    // Increment dest addr
-  0x2C23, 0x0EB5,  // sw   a1, DM_DATA1_ADDR[11:0](a0)  // Update addr in DATA1
-
-  // waitloop: Busywait for programming to complete
-  0x2537, 0x4002,  // lui  a0, FLASH_ACTLR[31:12]       // Load flash base addr
-  0x454C,          // lw   a1, 12(a0)                   // Load FLASH_STATR
-  0x8985,          // andi a1, a1, 1                    // Check BUSY bit
-  0xFDF5           // bnez a1, <waitloop>               // Loop if still busy                  //
-};
-
-_Static_assert(!(sizeof(prog_write) & 3), "prog_write");
-
-//------------------------------------------------------------------------------
-
-bool optb_write(uint32_t addr, uint8_t *data, size_t count) {
+bool optb_write(uint8_t offset, uint8_t *data, uint8_t count) {
 #if PROG_DUMP
-  print_c("option write: addr=%08X size=%d\n", addr, count);
+  print_c("option write: addr=%d size=%d\n", offset, count);
 #endif
 
   flash_ctlr ctlr;
-  if (!flash_get_ctlr(&ctlr))                  return false;
-  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_OBPG)) return false;
+  if (!flash_get_ctlr(&ctlr))                          return false;
+  if (!flash_set_ctlr(CTLR_OBWRE | CTLR_OBPG))         return false;
 
-  ctx_load_prog((uint32_t *)prog_write, sizeof(prog_write) / 4);
-  if (!gpr_cache_save(GPRB(A0) | GPRB(A1) | GPRB(A2))) return false;
-
-  dm_set_data1(addr);
-
-  // Write words using auto-execution
-  dm_set_abstractauto(DM_AUTOEXECDATA(1));
   bool ret = false;
+
+  ctx_load_prog((uint32_t *)stub_write, sizeof(stub_write) / 4);
+  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1))) goto cleanup;
+
+  dm_set_data1(offset + OPTB_ADDR);
+  dm_set_abstractauto(DM_AUTOEXECDATA(1));
 
   for (size_t i = 0; i < count; i++) {
     dm_set_data0(data[i]);
-    if (!dm_abstractcs_wait())                 goto cleanup;
+    if (!dm_abstractcs_wait())                         goto cleanup;
   }
 
   // Success
@@ -82,6 +88,9 @@ bool optb_write(uint32_t addr, uint8_t *data, size_t count) {
 cleanup:
   // Disable auto-execution
   dm_set_abstractauto(0);
+
+  // Restor FLASH control register
+  (void)flash_set_ctlr(ctlr.raw);
   return ret;
 }
 

@@ -5,6 +5,7 @@
 
 #include "out/swio.pio.h"
 #include "context.h"
+#include "option.h"
 #include "utils.h"
 #include "vendor.h"
 
@@ -16,6 +17,7 @@
 
 static PIO pio;
 static uint sm, offset;
+uint16_t dm_data_addr;
 
 //------------------------------------------------------------------------------
 
@@ -121,11 +123,17 @@ static inline bool swio_verify(void) {
 
   // Verify data0 offset address
   dm_hartinfo hartinfo = dm_get_hartinfo();
-  if (!hartinfo.b.DATAACCESS || hartinfo.b.DATAADDR != DM_DATA_OFFSET) {
+  if (!hartinfo.b.DATAACCESS) {
     LOG_R("swio: wrong chip (%08X)\n", hartinfo.raw);
     return false;
   }
 
+  // Update stubs
+  dm_data_addr = hartinfo.b.DATAADDR;
+
+  uint16_t op_code = (dm_data_addr << 4) | 4;
+  ctx_set_stub_opcode(op_code);
+  optb_set_stub_opcode(op_code);
   return true;
 }
 
