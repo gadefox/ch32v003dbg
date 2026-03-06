@@ -69,7 +69,7 @@ int flash_fastprog_unlock(void) {
 // API
 
 bool flash_status_wait(void) {
-  for (int i = 0; i < 250; i++) {  // timeout 100 ms
+  for (int i = 0; i < 150; i++) {  // timeout 60 ms
     flash_statr statr;
     if (!flash_get_statr(&statr))
       return false;
@@ -78,11 +78,16 @@ bool flash_status_wait(void) {
       sleep_us(400);
       continue;
     }
-/*
+
+    if (statr.raw & STATR_WRPRTERR) {
+      print_c(2, "STATR_WRPRTERR!\n");
+//      (void)flash_set_statr(STATR_EOP);  // W1C
+    }
+
     if (statr.raw & STATR_EOP) {
       print_c(2, "EOP!\n");
-      (void)flash_set_statr(STATR_EOP);  // W1C
-    }*/
+//      (void)flash_set_statr(STATR_EOP);  // W1C
+    }
     return true;
   }
 
@@ -131,42 +136,40 @@ inline bool flash_erase(uint32_t addr, uint32_t ctlr) {
 // to do some assembly programming in the debug module.
 
 const uint16_t stub_write[] = {
-  0x4188,          // c.lw   a0, 0(a1)            ; a0 = DM_DATA0
-  0xC008,          // c.sw   a0, 0(s0)            ; *s0 = a0
-  0xC890,          // c.sw   a2, 16(s1)           ; FLASH_CTLR = BUFLOAD | FTPG | OBWRE
+  0x4188,          // c.lw   a0, 0(a1)            ; data = DM_DATA0
+  0xC008,          // c.sw   a0, 0(s0)            ; *addr = data
+  0xC890,          // c.sw   a2, 16(s1)           ; *FLASH_CTLR = BUFLOAD | FTPG | OBWRE
+  0x0411,          // c.addi s0, 4                ; addr += 4
 
   // loop1: wait for copy to complete
-  0x44C8,          // c.lw   a0, 12(s1)           ; Load FLASH_STATR
-  0x8905,          // c.andi a0, 1                ; Check BUSY bit
-  0xFD75,          // c.bnez a0, -4               ; Loop if still busy
+  0x44C8,          // c.lw   a0, 12(s1)           ; a0 = *FLASH_STATR
+  0x8905,          // c.andi a0, 1                ; a0 &= BUSY
+  0xFD75,          // c.bnez a0, -4               ; If a0 -> goto loop1
 
-  0x0411,          // c.addi s0, 4                ; addr += 4
-  0x7513, 0x03F4,  // andi   a0, s0, 63           ; Check lower 6 bits
-  0xE519,          // c.bnez a0, 14               ; If not page boundary, done
-  0xC894,          // c.sw   a3, 16(s1)           ; FLASH_CTLR = STRT | FTPG | OBWRE
+  0x7513, 0x03F4,  // andi   a0, s0, 63           ; a0 = addr & 0b111111 (63)
+  0xE519,          // c.bnez a0, 14               ; If a0 -> goto done
+  0xC894,          // c.sw   a3, 16(s1)           ; *FLASH_CTLR = STRT | FTPG | OBWRE
 
   // loop2: wait for page write to complete
-  0x44C8,          // c.lw   a0, 12(s1)           ; Load FLASH_STATR
-  0x8905,          // c.andi a0, 1                ; Check BUSY bit
-  0xFD75,          // c.bnez a0, -4               ; Loop if still busy
+  0x44C8,          // c.lw   a0, 12(s1)           ; a0 = *FLASH_STATR
+  0x8905,          // c.andi a0, 1                ; a0 &= BUSY
+  0xFD75,          // c.bnez a0, -4               ; If a0 -> goto loop2
 
-  0xC898,          // c.sw   a4, 16(s1)           ; FLASH_CTLR = BUFRST | FTPG | OBWRE
-  0xC8C0           // c.sw   s0, 20(s1)           ; FLASH_ADDR = addr
+  0xC898,          // c.sw   a4, 16(s1)           ; *FLASH_CTLR = BUFRST | FTPG | OBWRE
+  0xC8C0           // c.sw   s0, 20(s1)           ; *FLASH_ADDR = addr
 };
 
 _Static_assert(!(sizeof(stub_write) & 3), "stub_write");
 
 //------------------------------------------------------------------------------
-// NOTE: Flash write must be page-aligned: word_count has to be a whole number of pages
+// NOTE: Flash write must be page-aligned!
  
 bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count) {
   CHECK(!(count % CH32_FLASH_PAGE_WORDS));
 
 #if PROG_DUMP
-  print_c("flash write: addr=%08X size=%d\n", addr, count);
+  print_c("flash write: addr=%08X count=%d\n", addr, count);
 #endif
-
-  print_c(0, "swio: %03X", dm_data_addr);
 
   if (!flash_set_addr(addr))                                 return false;
 
@@ -300,7 +303,7 @@ void flash_rst_mode_dump(rst_mode_t rst_mode) {
 
     const char *delay;
     switch (rst_mode) {
-      case RST_MODE_MUX128: delay = "128 us"; break;
+      case RST_MODE_MUX128: delay = "128 µs"; break;
       case RST_MODE_MUX1:   delay = "1 ms";   break;
       case RST_MODE_MUX12:  delay = "12 ms";  break;
       default:              delay = "?";
@@ -315,10 +318,8 @@ void flash_rst_mode_dump(rst_mode_t rst_mode) {
 void flash_obr_dump(flash_obr r) {
   print_hex(0, "OBR", r.raw);
   flash_rst_mode_dump(r.b.RST_MODE);
-  printf("  DATA0:%02X  DATA1:%02X  IWDG_SW:%d  OBERR:%d\n",
-         r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR);
-  printf("  RDPRT:%d  STANDBY_RST:%d  START_MODE:%d\n",
-         r.b.RDPRT, r.b.STANDBY_RST, r.b.START_MODE);
+  printf("  DATA0:%02X  DATA1:%02X  IWDG_SW:%d  OBERR:%d  RDPRT:%d  STANDBY_RST:%d  START_MODE:%d\n",
+         r.b.DATA0, r.b.DATA1, r.b.IWDG_SW, r.b.OBERR, r.b.RDPRT, r.b.STANDBY_RST, r.b.START_MODE);
 }
 
 //------------------------------------------------------------------------------

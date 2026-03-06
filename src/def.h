@@ -18,7 +18,7 @@
 
 //------------------------------------------------------------------------------
 
-#define LOGS  1
+#define LOGS  0
 
 #define BREAK_DUMP   1
 #define GPR_DUMP     0

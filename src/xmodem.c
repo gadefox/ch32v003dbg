@@ -168,8 +168,6 @@ static int xmodem_handle_block(void) {
 
 //------------------------------------------------------------------------------
 
-#if LOGS
-
 uint16_t xmodem_crc_calc(const uint8_t *src, uint32_t size) {
   dma_channel_set_read_addr(dma_chan, src, false);
   dma_sniffer_set_data_accumulator(0);
@@ -177,8 +175,6 @@ uint16_t xmodem_crc_calc(const uint8_t *src, uint32_t size) {
   dma_channel_wait_for_finish_blocking(dma_chan);
   return dma_sniffer_get_data_accumulator();
 }
-
-#endif // LOGS
 
 //------------------------------------------------------------------------------
 

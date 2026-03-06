@@ -135,7 +135,7 @@ quit:
   if (!page->break_map) {
     // Free page slot
 #if BREAK_DUMP
-    print_c(2, "break:cache: free page slot: %04X", page->index);
+    LOG_C(2, "break:cache: free page slot: %04X", page->index);
 #endif
     page->index = BP_FREE;
   }

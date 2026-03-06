@@ -472,6 +472,12 @@ static void console_info_parse(void) {
 // Option bytes handlers
 
 static void console_option_get(void) {
+  uint8_t x[64];
+  for (int i = 0; i < 64; i++)
+    x[i] = i;
+  bool y = flash_write_pages(CH32_FLASH_ADDR, (uint32_t*)x, 16);
+  printf("xx_%d",y);
+return;
   print_y(0, "option:get\n");
   if (ctx_halted_err("read option bytes"))
     console_get_u32(OPTB_ADDR, OPTB_SIZE - 4);

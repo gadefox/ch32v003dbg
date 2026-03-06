@@ -60,10 +60,8 @@ static const char* vndb_package_dump(package p) {
 
 void vndb_chipid_dump(const char *name, vndb_chipid r) {
   print_hex(0, name, r.raw);
-
-  vndb_package_dump(r.b.PACKAGE);  
-  print_hex(2, "DEVID", r.b.DEVID);
-  print_hex(2, "REVID", r.b.REVID);
+  vndb_package_dump(r.b.PACKAGE);
+  printf("  DEVID:%03X  REVID:%04X\n", r.b.DEVID, r.b.REVID);
 }
 
 //------------------------------------------------------------------------------
