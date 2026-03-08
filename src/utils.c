@@ -86,6 +86,14 @@ inline void print_status(bool status) {
     print_r(1, "failed\n");
 }
 
+//------------------------------------------------------------------------------
+
+inline void print_lock(bool lock) {
+  print_b(0, "lock");
+  putchar(':');
+  print_color(PRINT_GREEN - lock, 1, lock ? "yes\n" : "no\n");
+}
+
 //==============================================================================
 // Decimal
 

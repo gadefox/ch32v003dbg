@@ -8,7 +8,7 @@
 
 void vendor_dump(void) {
   print_y(0, "vendor:info\n");
-  if (!ctx_halted_err("display vendor bytes"))
+  if (!ctx_halted("display vendor bytes"))
     return;
 
   ctx_dump_block(0, VNDB_ADDR, VNDB_SIZE);

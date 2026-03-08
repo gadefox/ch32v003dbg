@@ -187,7 +187,7 @@ _Static_assert(!(sizeof(stub_set_block) & 3), "stub_set_block");
 // NOTE: We can NOT save registers here, as doing so would clobber DATA0 which
 // may be loaded with something the program needs.
 
-inline bool ctx_prog_exec(const char *name) {
+inline bool ctx_exec_prog(const char *name) {
 #if PROG_DUMP
   print_c(0,"PROG: exec %s\n", name);
 #endif
@@ -461,7 +461,7 @@ static void test_crc(void) {
 void ctx_test(void) {
   print_y(0, "debug:test\n");
 
-  if (!ctx_halted_err("test"))
+  if (!ctx_halted("test"))
     return;
 
   uint32_t addr = 0x20000400;
@@ -550,9 +550,9 @@ void ctx_dump(void) {
   prog_cache_dump();
 
   dm_abstractauto abstractauto = dm_get_abstractauto();
-  dm_abstractauto_dump(abstractauto);
-
   dm_abstractcs abstractcs = dm_get_abstractcs();
+
+  dm_abstractauto_dump(abstractauto, abstractcs.b.DATACOUNT, prog_size);
   dm_abstractcs_dump(abstractcs);
 
   dm_command command = dm_get_command();
@@ -561,7 +561,9 @@ void ctx_dump(void) {
   dm_control control = dm_get_control();
   dm_control_dump(control);
 
-  uint32_t haltsum0 = dm_get_haltsum0();
+  dm_data_dump(abstractcs.b.DATACOUNT);
+
+  bool haltsum0 = dm_get_haltsum0();
   dm_print(DM_HALTSUM0, haltsum0);
 
   dm_hartinfo hartinfo = dm_get_hartinfo();
@@ -571,12 +573,11 @@ void ctx_dump(void) {
   dm_status_dump(status);
 
   if (!haltsum0) {
-    ctx_halted_err("display debug registers");
+    ctx_halted("display debug registers");
     return;
   }
- 
+
   dm_progbuf_dump(prog_size);
-  dm_data_dump(hartinfo.b.DATASIZE);
 
   csr_dmcu_cr dmcu_cr;
   if (csr_get_dmcu_cr(&dmcu_cr))
@@ -595,7 +596,7 @@ void ctx_dump(void) {
 
 //------------------------------------------------------------------------------
 
-inline bool ctx_halted_err(const char *msg) {
+inline bool ctx_halted(const char *msg) {
   if (!dm_get_haltsum0()) {
     print_r(2, "can't %s while target is running\n", msg);
     return false;
@@ -661,7 +662,7 @@ bool ctx_read_reg(uint16_t regno, uint32_t *value) {
   dm_abstractcs_clear_err();
 
   // Set abstract command to copy register data to Data0 register
-  dm_set_command(regno | DMCM_TRANSFER | DMCM_AARSIZE32);
+  dm_set_command(regno | DMCM_TRANSFER | DMCM_AARSIZE(32));
 
   // Wait for device to become ready
   if (!dm_abstractcs_wait())
@@ -680,7 +681,7 @@ bool ctx_write_reg(uint16_t regno, uint32_t value) {
   dm_set_data0(value);
 
   // Set abstract command to copy Data0 data to x6 register
-  dm_set_command(regno | DMCM_WRITE | DMCM_TRANSFER | DMCM_AARSIZE32);
+  dm_set_command(regno | DMCM_WRITE | DMCM_TRANSFER | DMCM_AARSIZE(32));
 
   // Wait for device to become ready
   return dm_abstractcs_wait();
@@ -881,7 +882,7 @@ bool ctx_get_mem32_aligned(uint32_t addr, uint32_t *data) {
 
   // Set LSB to 0 to indicate read operation
   dm_set_data1(addr);
-  if (!ctx_prog_exec("get mem32"))
+  if (!ctx_exec_prog("get mem32"))
     return false;
 
   *data = dm_get_data0();
@@ -903,7 +904,7 @@ bool ctx_set_mem32_aligned(uint32_t addr, uint32_t data) {
   dm_set_data1(addr | 1);
   dm_set_data0(data);
 
-  return ctx_prog_exec("set mem32");
+  return ctx_exec_prog("set mem32");
 }
 
 //==============================================================================
@@ -915,21 +916,20 @@ bool ctx_get_block(uint32_t addr, uint32_t *data, size_t count) {
 #endif
 
   ctx_load_prog((uint32_t *)stub_get_block, sizeof(stub_get_block) / 4);
-  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1)))
-    return false;
+  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1))) return false;
 
+  // First kick
   dm_set_data1(addr);
-  if (!ctx_prog_exec("getblk"))
-    return false;
+  if (!ctx_exec_prog("getblk"))                        return false;
 
   // Read words using auto-execution
-  dm_set_abstractauto(DM_AUTOEXECDATA(1));
+  dm_set_abstractauto(DMAA_DATA0);
   bool ret = false;
 
   while (count > 1) {
+    // Next kick
     *data++ = dm_get_data0();
-    if (!dm_abstractcs_wait())
-      goto cleanup;
+    if (!dm_abstractcs_wait())                         goto cleanup;
     count--;
   }
 
@@ -954,19 +954,21 @@ bool ctx_set_block(uint32_t addr, uint32_t *data, size_t count) {
 #endif
 
   ctx_load_prog((uint32_t *)stub_set_block, sizeof(stub_set_block) / 4);
-  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1)))
-    return false;
+  if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1))) return false;
 
+  // First kick
+  dm_set_data0(data[0]);
   dm_set_data1(addr);
+  if (!ctx_exec_prog("getblk"))                        return false;
 
   // Write words using auto-execution
-  dm_set_abstractauto(DM_AUTOEXECDATA(1));
+  dm_set_abstractauto(DMAA_DATA0);
   bool ret = false;
 
-  for (size_t i = 0; i < count; i++) {
+  for (size_t i = 1; i < count; i++) {
+    // Next kick
     dm_set_data0(data[i]);
-    if (!dm_abstractcs_wait())
-      goto cleanup;
+    if (!dm_abstractcs_wait())                         goto cleanup;
   }
 
   // Success
@@ -1250,7 +1252,7 @@ void csr_dmcu_cr_dump(csr_dmcu_cr r) {
 void csr_dump(void) {
   print_y(0, "csr:dump\n");
 
-  if (!ctx_halted_err("display CSRs"))
+  if (!ctx_halted("display CSRs"))
     return;
 
   csr_mvendorid mvendorid;
@@ -1336,7 +1338,7 @@ static void gpr_dump_regs(const char *desc, uint32_t mask, uint8_t mod) {
 void gpr_dump(void) {
   print_y(0, "gpr:dump\n");
 
-  if (!ctx_halted_err("display GPRs"))
+  if (!ctx_halted("display GPRs"))
     return;
 
   uint32_t dpc;

@@ -68,8 +68,26 @@ int flash_fastprog_unlock(void) {
 //==============================================================================
 // API
 
+bool flash_enabled(const char *halted_err, uint32_t mask) {
+  if (!ctx_halted(halted_err))
+    return false;
+
+  flash_ctlr ctlr;
+  if (!flash_get_ctlr(&ctlr))
+    return false;
+
+  if ((ctlr.raw & mask) != mask) {
+    print_r(2, "flash locked\n");
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+
 bool flash_status_wait(void) {
-  for (int i = 0; i < 150; i++) {  // timeout 60 ms
+  for (int i = 0; i < 150; i++) {  // Timeout 60 ms
     flash_statr statr;
     if (!flash_get_statr(&statr))
       return false;
@@ -79,20 +97,13 @@ bool flash_status_wait(void) {
       continue;
     }
 
-    if (statr.raw & STATR_WRPRTERR) {
-      print_c(2, "STATR_WRPRTERR!\n");
-//      (void)flash_set_statr(STATR_EOP);  // W1C
-    }
-
-    if (statr.raw & STATR_EOP) {
-      print_c(2, "EOP!\n");
-//      (void)flash_set_statr(STATR_EOP);  // W1C
-    }
-    return true;
+    // EOP and WRPRTERR are W1C; writing the current status value clears them.
+    (void)flash_set_statr(statr.raw);
+    return !(statr.raw & STATR_WRPRTERR);
   }
 
   print_r(2, "flash: status timeout\n");
-  return false;  // timeout
+  return false;  // Timeout
 }
 
 //------------------------------------------------------------------------------
@@ -136,17 +147,17 @@ inline bool flash_erase(uint32_t addr, uint32_t ctlr) {
 // to do some assembly programming in the debug module.
 
 const uint16_t stub_write[] = {
-  0x4188,          // c.lw   a0, 0(a1)            ; data = DM_DATA0
-  0xC008,          // c.sw   a0, 0(s0)            ; *addr = data
+  0x4008,          // c.lw   a0, 0(s0)            ; data = DM_DATA0
+  0xC188,          // c.sw   a0, 0(a1)            ; *addr = data
   0xC890,          // c.sw   a2, 16(s1)           ; *FLASH_CTLR = BUFLOAD | FTPG | OBWRE
-  0x0411,          // c.addi s0, 4                ; addr += 4
+  0x0591,          // c.addi a1, 4                ; addr += 4
 
   // loop1: wait for copy to complete
   0x44C8,          // c.lw   a0, 12(s1)           ; a0 = *FLASH_STATR
   0x8905,          // c.andi a0, 1                ; a0 &= BUSY
   0xFD75,          // c.bnez a0, -4               ; If a0 -> goto loop1
 
-  0x7513, 0x03F4,  // andi   a0, s0, 63           ; a0 = addr & 0b111111 (63)
+  0xF513, 0x03F5,  // andi   a0, a1, 63           ; a0 = addr & 0b111111 (63)
   0xE519,          // c.bnez a0, 14               ; If a0 -> goto done
   0xC894,          // c.sw   a3, 16(s1)           ; *FLASH_CTLR = STRT | FTPG | OBWRE
 
@@ -171,33 +182,36 @@ bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count) {
   print_c("flash write: addr=%08X count=%d\n", addr, count);
 #endif
 
-  if (!flash_set_addr(addr))                                 return false;
-
   flash_ctlr ctlr;
   if (!flash_get_ctlr(&ctlr))                                return false;
   if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG))               return false;
 
   bool ret = false;
-
   if (!flash_set_ctlr(CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST)) goto cleanup;
+  if (!flash_set_addr(addr))                                 goto cleanup;
   if (!flash_status_wait())                                  goto cleanup;
 
   ctx_load_prog((uint32_t *)stub_write, sizeof(stub_write) / 4);
   if (!gpr_cache_save(GPRB(S0) | GPRB(S1) | GPRB(A0) | GPRB(A1) | GPRB(A2) |
         GPRB(A3) | GPRB(A4)))                                goto cleanup;
 
-  if (!gpr_set_s(0, addr))                                   goto cleanup;
+  if (!gpr_set_s(0, DM_DATA_ADDR))                           goto cleanup;
   if (!gpr_set_s(1, FLASH_ACTLR))                            goto cleanup;
 
-  if (!gpr_set_a(1, DM_DATA_BASE + dm_data_addr))            goto cleanup;
+  if (!gpr_set_a(1, addr))                                   goto cleanup;
   if (!gpr_set_a(2, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFLOAD))  goto cleanup;
   if (!gpr_set_a(3, CTLR_OBWRE | CTLR_FTPG | CTLR_STRT))     goto cleanup;
   if (!gpr_set_a(4, CTLR_OBWRE | CTLR_FTPG | CTLR_BUFRST))   goto cleanup;
 
-  // Flash words using auto-execution
-  dm_set_abstractauto(DM_AUTOEXECDATA(1));
+  // First kick
+  dm_set_data0(data[0]);
+  if (!ctx_exec_prog("flash write"))                         goto cleanup;
 
-  for (size_t i = 0; i < count; i++) {
+  // Flash words using auto-execution
+  dm_set_abstractauto(DMAA_DATA0);
+
+  for (size_t i = 1; i < count; i++) {
+    // Next kick
     dm_set_data0(data[i]);
     if (!dm_abstractcs_wait())                               goto cleanup;
   }
@@ -209,9 +223,19 @@ cleanup:
   // Disable auto-execution
   dm_set_abstractauto(0);
 
-  // Restor FLASH control register
+  // Restore control register
   (void)flash_set_ctlr(ctlr.raw);
-  return ret;
+
+  // Check write protection error
+  flash_statr statr;
+  if (!flash_get_statr(&statr))
+    return false;
+
+  // EOP and WRPRTERR are W1C; writing the current status value clears them.
+  if (statr.raw & (STATR_EOP | STATR_WRPRTERR))
+    (void)flash_set_statr(statr.raw);
+
+  return ret && !(statr.raw & STATR_WRPRTERR);
 }
 
 //------------------------------------------------------------------------------
@@ -236,7 +260,6 @@ cleanup:
 }
 
 //------------------------------------------------------------------------------
-// Dumps flash regs and the first 768 bytes of flash.
 
 void flash_dump(uint32_t addr) {
   ctx_dump_block(addr, CH32_FLASH_ADDR, CH32_FLASH_SIZE);
@@ -274,18 +297,24 @@ void flash_actlr_dump(flash_actlr r) {
 
 void flash_statr_dump(flash_statr r) {
   print_hex(0, "STATR", r.raw);
-  printf("  BOOT_LOCK:%d  BUSY:%d  EOP:%d  MODE:%d  WRPRTERR:%d\n",
-         r.b.BOOT_LOCK, r.b.BUSY, r.b.EOP, r.b.MODE, r.b.WRPRTERR);
+  print_color(PRINT_GREEN - r.b.BOOT_LOCK, 2, "BOOT_LOCK:%d", r.b.BOOT_LOCK);
+  printf("  BUSY:%d  EOP:%d  MODE:%d  WRPRTERR:%d\n",
+         r.b.BUSY, r.b.EOP, r.b.MODE, r.b.WRPRTERR);
 }
 
 //------------------------------------------------------------------------------
 
 void flash_ctlr_dump(flash_ctlr r) {
   print_hex(0, "CTLR", r.raw);
-  printf("  BUFLOAD:%d  BUFRST:%d  ERRIE:%d  EOPIE:%d  FLOCK:%d  FTER:%d  FTPG:%d\n",
-         r.b.BUFLOAD, r.b.BUFRST, r.b.ERRIE, r.b.EOPIE, r.b.FLOCK, r.b.FTER, r.b.FTPG);
-  printf("  LOCK:%d  MER:%d  OBER:%d  OBPG:%d  OBWRE:%d  PER:%d  PG:%d  STRT:%d\n",
-         r.b.LOCK, r.b.MER, r.b.OBER, r.b.OBPG, r.b.OBWRE, r.b.PER, r.b.PG, r.b.STRT);
+  printf("  BUFLOAD:%d  BUFRST:%d  ERRIE:%d  EOPIE:%d",
+         r.b.BUFLOAD, r.b.BUFRST, r.b.ERRIE, r.b.EOPIE);
+  print_color(PRINT_GREEN - r.b.FLOCK, 2, "FLOCK:%d", r.b.FLOCK);
+  printf("  FTER:%d  FTPG:%d\n", r.b.FTER, r.b.FTPG);
+
+  print_color(PRINT_GREEN - r.b.LOCK, 2, "LOCK:%d", r.b.LOCK);
+  printf("  MER:%d  OBER:%d  OBPG:%d", r.b.MER, r.b.OBER, r.b.OBPG);
+  print_color(PRINT_RED + r.b.OBWRE, 2, "OBWRE:%d", r.b.OBWRE);
+  printf("  PER:%d  PG:%d  STRT:%d\n", r.b.PER, r.b.PG, r.b.STRT);
 }
 
 //==============================================================================

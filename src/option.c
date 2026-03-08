@@ -31,11 +31,25 @@ inline void optb_set_stub_opcode(uint16_t opcode) {
 
 //------------------------------------------------------------------------------
 
-inline int optb_is_unlocked(void) {
+bool optb_enabled(const char *halted_err) {
+  if (!ctx_halted(halted_err))
+    return false;
+
+  if (optb_locked()) {
+    print_r(2, "flash or option bytes locked\n");
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+
+inline int optb_locked(void) {
   flash_ctlr ctlr;
   if (!flash_get_ctlr(&ctlr))
     return -1;
-  return ctlr.raw & CTLR_OBWRE;
+  return flash_ctlr_opb_locked(ctlr);
 }
 
 //------------------------------------------------------------------------------
@@ -46,7 +60,7 @@ int optb_lock(void) {
     return -1;
   if (!flash_set_ctlr(ctlr.raw & ~CTLR_OBWRE))
     return -1;
-  return optb_is_unlocked();
+  return optb_locked();
 }
 
 //------------------------------------------------------------------------------
@@ -55,7 +69,7 @@ int optb_unlock(void) {
   // Unlock option bytes
   if (!optb_set_obkeyr(UNLOCK_KEY1) || !optb_set_obkeyr(UNLOCK_KEY2))
     return -1;
-  return optb_is_unlocked();
+  return optb_locked();
 }
 
 //------------------------------------------------------------------------------
@@ -74,10 +88,16 @@ bool optb_write(uint8_t offset, uint8_t *data, uint8_t count) {
   ctx_load_prog((uint32_t *)stub_write, sizeof(stub_write) / 4);
   if (!gpr_cache_save(GPRB(S0) | GPRB(A0) | GPRB(A1))) goto cleanup;
 
-  dm_set_data1(offset + OPTB_ADDR);
-  dm_set_abstractauto(DM_AUTOEXECDATA(1));
+  // First kick
+  dm_set_data0(data[0]);
+  dm_set_data1(OPTB_ADDR + offset);
+  if (!ctx_exec_prog("option write"))                  goto cleanup;
 
-  for (size_t i = 0; i < count; i++) {
+  // Flash words using auto-execution
+  dm_set_abstractauto(DMAA_DATA0);
+
+  for (uint8_t i = 1; i < count; i++) {
+    // Next kick
     dm_set_data0(data[i]);
     if (!dm_abstractcs_wait())                         goto cleanup;
   }
@@ -89,7 +109,7 @@ cleanup:
   // Disable auto-execution
   dm_set_abstractauto(0);
 
-  // Restor FLASH control register
+  // Restore control register
   (void)flash_set_ctlr(ctlr.raw);
   return ret;
 }
@@ -98,8 +118,14 @@ cleanup:
 
 void optb_dump(void) {
   print_y(0, "option:info\n");
-  if (!ctx_halted_err("display option bytes"))
+  if (!ctx_halted("display option bytes"))
     return;
+
+  flash_ctlr ctlr;
+  if (flash_get_ctlr(&ctlr)) {
+    bool locked = flash_ctlr_opb_locked(ctlr);
+    print_lock(locked);
+  }
 
   ctx_dump_block(0, OPTB_ADDR, OPTB_SIZE);
 

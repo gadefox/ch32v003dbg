@@ -7,8 +7,9 @@
 // API
 
 void optb_set_stub_opcode(uint16_t opcode);
+bool optb_enabled(const char *halted_err);
 
-int optb_is_unlocked(void);
+int optb_locked(void);
 int optb_lock(void);
 int optb_unlock(void);
 

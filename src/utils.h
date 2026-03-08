@@ -37,6 +37,7 @@ void print_hex(uint8_t spaces, const char *name, uint32_t value);
 void print_bits(uint8_t spaces, const char *name, uint32_t value, uint8_t bit_count);
 void print_str(uint8_t spaces, const char *name, const char* text);
 void print_status(bool status);
+void print_lock(bool lock);
 
 #if LOGS
 

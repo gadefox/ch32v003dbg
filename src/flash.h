@@ -118,6 +118,9 @@ void flash_ctlr_dump(flash_ctlr r);
 inline bool flash_set_ctlr(uint32_t value) { return ctx_set_mem32_aligned(FLASH_CTLR, value); }
 inline bool flash_get_ctlr(flash_ctlr *ctlr) { return ctx_get_mem32_aligned(FLASH_CTLR, &ctlr->raw); }
 
+inline bool flash_ctlr_opb_locked(flash_ctlr ctlr) {
+  return (ctlr.raw & (CTLR_LOCK | CTLR_OBWRE)) != CTLR_OBWRE; }
+
 //------------------------------------------------------------------------------
 // Address register
 
@@ -181,14 +184,19 @@ inline bool flash_set_mode_keyr(uint32_t value) { return ctx_set_mem32_aligned(F
 
 #define CH32_FLASH_ADDR  0x08000000
 
-#define CH32_FLASH_PAGE_WORDS    16
-#define CH32_FLASH_PAGE_SIZE     (CH32_FLASH_PAGE_WORDS * 4)              // 64 bytes
-#define CH32_FLASH_SECTOR_WORDS  (CH32_FLASH_PAGE_WORDS * 16)             // 256 bytes
-#define CH32_FLASH_SECTOR_SIZE   (CH32_FLASH_PAGE_SIZE * 16)              // 1K byte
-#define CH32_FLASH_SIZE          (CH32_FLASH_SECTOR_SIZE * 16)            // 16K bytes
-#define CH32_FLASH_PAGE_COUNT    (CH32_FLASH_SIZE / CH32_FLASH_PAGE_SIZE) // 256
+#define CH32_FLASH_PAGE_COUNT  256
+#define CH32_FLASH_PAGE_WORDS  16
+#define CH32_FLASH_PAGE_SIZE   (CH32_FLASH_PAGE_WORDS * 4)  // 64 bytes
+
+#define CH32_FLASH_SECTOR_COUNT  16
+#define CH32_FLASH_SECTOR_WORDS  (CH32_FLASH_PAGE_WORDS * 16)   // 256 words
+#define CH32_FLASH_SECTOR_SIZE   (CH32_FLASH_SECTOR_WORDS * 4)  // 1K
+
+#define CH32_FLASH_SIZE  (CH32_FLASH_SECTOR_SIZE * 16)  // 16K bytes
 
 //------------------------------------------------------------------------------
+
+bool flash_enabled(const char *halted_err, uint32_t mask);
 
 // Lock/unlock flash. Assume flash always starts locked.
 int flash_fpec_locked(void);
@@ -209,14 +217,14 @@ bool flash_erase(uint32_t addr, uint32_t ctlr);
 // option bytes. Unlocking cannot be achieved by simply setting it back to 1;
 // a specific key sequence is required to re-enable write access.
 // If the option bytes are not unlocked, setting this bit is ignored.
-inline bool flash_erase_page(uint32_t addr) {
-  return flash_erase(addr, CTLR_OBWRE | CTLR_FTER); }  // Timeout < 4 ms
+inline bool flash_erase_page(uint16_t page) {      // Timeout < 4 ms
+  return flash_erase(CH32_FLASH_ADDR + page * CH32_FLASH_PAGE_SIZE, CTLR_OBWRE | CTLR_FTER); }
 
-inline bool flash_erase_sector(uint32_t addr) {
-  return flash_erase(addr, CTLR_OBWRE | CTLR_PER); }   // Timeout < 51 ms
+inline bool flash_erase_sector(uint16_t sector) {  // Timeout < 51 ms
+  return flash_erase(CH32_FLASH_ADDR + sector * CH32_FLASH_SECTOR_SIZE, CTLR_OBWRE | CTLR_PER); }
 
-inline bool flash_erase_chip(void) {
-  return flash_erase(CH32_FLASH_ADDR, CTLR_OBWRE | CTLR_MER); }  // Timeout < 4 ms
+inline bool flash_erase_chip(void) {               // Timeout < 4 ms
+  return flash_erase(CH32_FLASH_ADDR, CTLR_OBWRE | CTLR_MER); }
 
 // Flash write, dest address must be aligned & size must be a multiple of 4
 bool flash_write_pages(uint32_t addr, const uint32_t *data, size_t count);

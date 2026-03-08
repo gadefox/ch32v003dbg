@@ -315,7 +315,7 @@ void swio_dump(void) {
 // Debug interface registers
 
 bool dm_status_wait(uint32_t mask, uint32_t value) {
-  for (int i = 0; i < 200; i++) {  // timeout 10 ms
+  for (int i = 0; i < 200; i++) {  // Timeout 10 ms
     dm_status status = dm_get_status();
     if ((status.raw & mask) == value)
       return true;
@@ -435,7 +435,7 @@ void dm_hartinfo_dump(dm_hartinfo r) {
 //==============================================================================
 
 bool dm_abstractcs_wait(void) {
-  for (int i = 0; i < 80; i++) {  // timeout 4 ms
+  for (int i = 0; i < 80; i++) {  // Timeout 4 ms
     dm_abstractcs abstractcs = dm_get_abstractcs();
     if (abstractcs.raw & DMA_BUSY) {
       sleep_us(50);
@@ -453,7 +453,7 @@ bool dm_abstractcs_wait(void) {
   }
 
   print_r(2, "abstract command timeout\n");
-  return false;  // timeout
+  return false;  // Timeout
 }
 
 //------------------------------------------------------------------------------
@@ -569,9 +569,11 @@ inline void dm_abstractcs_clear_err(void) {
 
 //------------------------------------------------------------------------------
 
-inline void dm_abstractauto_dump(dm_abstractauto r) {
+inline void dm_abstractauto_dump(dm_abstractauto r, uint8_t dcount, uint8_t pbcount) {
   dm_print(DM_ABSTRACTAUTO, r.raw);
-  printf("  AUTOEXECDATA:%d  AUTOEXECPROG:%d\n", r.b.AUTOEXECDATA, r.b.AUTOEXECPROG);
+  print_b(2, "autoexec\n");
+  print_bits(4, "DATA", r.b.AUTOEXECDATA, dcount);
+  print_bits(4, "PROGBUF", r.b.AUTOEXECPROGBUF, pbcount);
 }
 
 //------------------------------------------------------------------------------

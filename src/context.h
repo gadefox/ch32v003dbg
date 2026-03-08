@@ -16,8 +16,8 @@ void ctx_dump_block(uint32_t offset, uint32_t addr_base, uint32_t total_size);
 
 //----------
 // CPU control
-bool ctx_halted_err(const char *msg);
 bool ctx_abstracts_wait_busy(void);
+bool ctx_halted(const char *msg);
 
 bool ctx_halt(void);
 bool ctx_resume(bool step);
@@ -26,7 +26,7 @@ bool ctx_reset(void);
 //----------
 // Run small (32 byte on CH32V003) programs from the debug program buffer
 void ctx_load_prog(const uint32_t *prog, uint8_t size);
-bool ctx_run_prog(const char *name);
+bool ctx_exec_prog(const char *name);
 
 bool ctx_read_reg(uint16_t regno, uint32_t* value);
 bool ctx_write_reg(uint16_t regno, uint32_t value);

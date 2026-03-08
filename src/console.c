@@ -156,7 +156,7 @@ static void console_dump_handlers(const handler *handlers, size_t count, const c
 
 static void console_boot_info(void) {
   print_y(0, "boot:info\n");
-  if (ctx_halted_err("display bootloader bytes")) {
+  if (ctx_halted("display bootloader bytes")) {
     int addr = console_take_addr(0, BOOT_SIZE - 4);
     if (addr != -1)
       boot_dump(addr);
@@ -167,7 +167,7 @@ static void console_boot_info(void) {
 
 static void console_boot_get(void) {
   print_y(0, "boot:get\n");
-  if (ctx_halted_err("read bootloader"))
+  if (ctx_halted("read bootloader"))
     console_get_u32(BOOT_ADDR, BOOT_SIZE - 4);
 }
 
@@ -175,7 +175,7 @@ static void console_boot_get(void) {
 
 static void console_boot_lock(void) {
   print_y(0, "boot:lock\n");
-  if (ctx_halted_err("lock bootloader")) {
+  if (ctx_halted("lock bootloader")) {
     bool status = boot_lock() > 0;
     print_status(status);
   }
@@ -185,7 +185,7 @@ static void console_boot_lock(void) {
 
 static void console_boot_unlock(void) {
   print_y(0, "boot:unlock\n");
-  if (ctx_halted_err("unlock bootloader")) {
+  if (ctx_halted("unlock bootloader")) {
     bool status = !boot_unlock();
     print_status(status);
   }
@@ -222,7 +222,7 @@ static void console_boot_parse(void) {
 
 static void console_break_set(void) {
   print_y(0, "break:set\n");
-  if (ctx_halted_err("set breakpoint")) {
+  if (ctx_halted("set breakpoint")) {
     int addr = console_take_addr(-1, CH32_FLASH_SIZE - 2);
     if (addr != -1)
       break_set(addr);
@@ -233,7 +233,7 @@ static void console_break_set(void) {
 
 static void console_break_clear(void) {
   print_y(0, "break:clear\n");
-  if (ctx_halted_err("clear breakpoint")) {
+  if (ctx_halted("clear breakpoint")) {
     int addr = console_take_addr(-1, CH32_FLASH_SIZE - 2);
     if (addr != -1)
       break_clear(addr);
@@ -244,7 +244,7 @@ static void console_break_clear(void) {
 
 static void console_break_unpatch(void) {
   print_y(0, "break:unpatch\n");
-  if (ctx_halted_err("unpatch flash")) {
+  if (ctx_halted("unpatch flash")) {
     bool status = break_patch(NULL, 0);
     print_status(status);
   }
@@ -280,7 +280,7 @@ static void console_break_parse(void) {
 
 static void console_flash_info(void) {
   print_y(0, "flash:dump\n");
-  if (ctx_halted_err("display flash")) {
+  if (ctx_halted("display flash")) {
     int addr = console_take_addr(0, CH32_FLASH_SIZE - 4);
     if (addr != -1)
       flash_dump(addr);
@@ -291,25 +291,15 @@ static void console_flash_info(void) {
 
 static void console_flash_get(void) {
   print_y(0, "flash:get\n");
-  if (ctx_halted_err("read flash"))
+  if (ctx_halted("read flash"))
     console_get_u32(CH32_FLASH_ADDR, CH32_FLASH_SIZE - 4);
-}
-
-//------------------------------------------------------------------------------
-
-static void console_flash_erase(void) {
-  print_y(0, "flash:erase\n");
-  if (ctx_halted_err("erase flash")) {
-    bool status = flash_erase_chip();
-    print_status(status);
-  }
 }
 
 //------------------------------------------------------------------------------
 
 static void console_flash_lock(void) {
   print_y(0, "flash:lock\n");
-  if (!ctx_halted_err("lock flash"))
+  if (!ctx_halted("lock flash"))
     return;
 
   bool status = flash_fastprog_lock() > 0;
@@ -325,7 +315,7 @@ static void console_flash_lock(void) {
 
 static void console_flash_unlock(void) {
   print_y(0, "flash:unlock\n");
-  if (!ctx_halted_err("unlock flash"))
+  if (!ctx_halted("unlock flash"))
     return;
 
   bool status = !flash_fpec_unlock();
@@ -339,12 +329,74 @@ static void console_flash_unlock(void) {
 
 //------------------------------------------------------------------------------
 
+static void console_flash_erase_page(void) {
+  print_y(0, "flash:erase page\n");
+  if (!flash_enabled("erase flash", CTLR_LOCK))
+    return;
+
+  int page = console_take_value(-1, CH32_FLASH_PAGE_COUNT);
+  if (page != -1) {
+    bool status = flash_erase_page(page);
+    print_status(status);
+  }
+}
+
+//------------------------------------------------------------------------------
+
+static void console_flash_erase_sector(void) {
+  print_y(0, "flash:erase sector\n");
+  if (!flash_enabled("erase flash", CTLR_LOCK))
+    return;
+
+  int sector = console_take_value(-1, CH32_FLASH_SECTOR_COUNT);
+  if (sector != -1) {
+    bool status = flash_erase_sector(sector);
+    print_status(status);
+  }
+}
+
+//------------------------------------------------------------------------------
+
+static void console_flash_erase_chip(void) {
+  print_y(0, "flash:erase\n");
+  if (flash_enabled("erase flash", CTLR_LOCK)) {
+    bool status = flash_erase_chip();
+    print_status(status);
+  }
+}
+
+//------------------------------------------------------------------------------
+
+static const handler flash_erase_handlers[] = {
+  { "page",   "p",  "num", console_flash_erase_page },
+  { "sector", "s",  "num", console_flash_erase_sector },
+  { "chip",   "ch", NULL,  console_flash_erase_chip }
+};
+
+//------------------------------------------------------------------------------
+
+static void console_flash_erase_help(void) {
+  console_dump_handlers(flash_erase_handlers, count_of(flash_erase_handlers), "flash:erase:\n");
+}
+
+//------------------------------------------------------------------------------
+
+static void console_flash_erase_parse(void) {
+  void *handler = handler_find(flash_erase_handlers, count_of(flash_erase_handlers));
+  if (!handler)
+    console_flash_erase_help();
+  else
+    handler_jump(handler);
+}
+
+//------------------------------------------------------------------------------
+
 static const handler flash_handlers[] = {
-  { "info",   "i", "offset", console_flash_info },
-  { "get",    "g", "offset", console_flash_get },
-  { "erase",  "er", NULL,    console_flash_erase },
-  { "lock",   "lo", NULL,    console_flash_lock },
-  { "unlock", "un", NULL,    console_flash_unlock }
+  { "info",   "i",  "offset",           console_flash_info },
+  { "get",    "g",  "offset",           console_flash_get },
+  { "erase",  "er", "page|sector|chip", console_flash_erase_parse },
+  { "lock",   "lo", NULL,               console_flash_lock },
+  { "unlock", "un", NULL,               console_flash_unlock }
 };
 
 //------------------------------------------------------------------------------
@@ -400,7 +452,7 @@ static void console_ctx_halt(void) {
 
 static void console_ctx_resume(void) {
   print_y(0, "debug:resume\n");
-  if (ctx_halted_err("resume")) {
+  if (ctx_halted("resume")) {
     bool status = break_resume(false);
     print_status(status);
   }
@@ -410,7 +462,7 @@ static void console_ctx_resume(void) {
 
 static void console_ctx_step(void) {
   print_y(0, "debug:step\n");
-  if (ctx_halted_err("step")) {
+  if (ctx_halted("step")) {
     bool status = break_resume(true);
     console_halted_dpc(status);
   }
@@ -472,14 +524,8 @@ static void console_info_parse(void) {
 // Option bytes handlers
 
 static void console_option_get(void) {
-  uint8_t x[64];
-  for (int i = 0; i < 64; i++)
-    x[i] = i;
-  bool y = flash_write_pages(CH32_FLASH_ADDR, (uint32_t*)x, 16);
-  printf("xx_%d",y);
-return;
   print_y(0, "option:get\n");
-  if (ctx_halted_err("read option bytes"))
+  if (ctx_halted("read option bytes"))
     console_get_u32(OPTB_ADDR, OPTB_SIZE - 4);
 }
 
@@ -487,7 +533,7 @@ return;
 
 static void console_option_erase(void) {
   print_y(0, "option:erase\n");
-  if (ctx_halted_err("erase option bytes")) {
+  if (optb_enabled("erase option bytes")) {
     bool status = optb_erase();
     print_status(status);
   }
@@ -497,7 +543,7 @@ static void console_option_erase(void) {
 
 static void console_option_write(const char *name, uint32_t offset, size_t count, size_t max, int defval) {
   print_y(0, "option:write %s\n", name);
-  if (!ctx_halted_err("write option bytes"))
+  if (!optb_enabled("write option bytes"))
     return;
 
   int value = console_take_value(defval, max);
@@ -528,8 +574,8 @@ static void console_option_wrpr1(void) {
 
 static void console_option_lock(void) {
   print_y(0, "option:lock\n");
-  if (ctx_halted_err("lock option bytes")) {
-    bool status = !optb_lock();
+  if (ctx_halted("lock option bytes")) {
+    bool status = optb_lock() > 0;
     print_status(status);
   }
 }
@@ -538,8 +584,8 @@ static void console_option_lock(void) {
 
 static void console_option_unlock(void) {
   print_y(0, "option:unlock\n");
-  if (ctx_halted_err("unlock option bytes")) {
-    bool status = optb_unlock() > 0;
+  if (ctx_halted("unlock option bytes")) {
+    bool status = !optb_unlock();
     print_status(status);
   }
 }
@@ -580,7 +626,7 @@ static void console_option_parse(void) {
 
 static void console_vendor_get(void) {
   print_y(0, "vendor:get\n");
-  if (ctx_halted_err("read vendor bytes"))
+  if (ctx_halted("read vendor bytes"))
     console_get_u32(VNDB_ADDR, VNDB_SIZE - 4);
 }
 

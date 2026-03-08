@@ -58,12 +58,15 @@ void dm_print(uint8_t addr, uint32_t raw);
 //------------------------------------------------------------------------------
 // Data registers, can be used for temporary storage of data
 
-#define DM_DATA_BASE    0xE0000000
+extern uint16_t dm_data_addr;
+
+#define DM_DATA_BASE  0xE0000000
+#define DM_DATA_ADDR  (DM_DATA_BASE + dm_data_addr)
 
 #define DM_DATA0  PIO_ADDR(0x04)             // 0xF6
 #define DM_DATA1  PIO_ADDR(0x05)             // 0xF4
 
-#define DM_DATA_MAX  12                      // (DM_DATA0 - DM_CONTROL) / 2
+#define DM_DATA_MAX  12
 #define DM_DATA(n)   (DM_DATA0 - (n) * 2)
 
 void dm_data_dump(uint8_t count);
@@ -78,8 +81,6 @@ inline uint32_t dm_get_data(uint8_t i) {
   return swio_get(DM_DATA(i)); }
 inline uint32_t dm_get_data0(void) { return dm_get_data(0); }
 inline uint32_t dm_get_data1(void) { return dm_get_data(1); }
-
-extern uint16_t dm_data_addr;
 
 //------------------------------------------------------------------------------
 // Debug module control register
@@ -269,17 +270,11 @@ typedef enum {
 
 #define DMCM_FPR         (1u << 5)
 #define DMCM_GPR         (1u << 12)
-
 #define DMCM_WRITE       (1u << 16)
 #define DMCM_TRANSFER    (1u << 17)
 #define DMCM_POSTEXEC    (1u << 18)
 #define DMCM_AARPOSTINC  (1u << 19)
-
-#define DMCM_AARSIZE8    (AARSIZE8   << 20)
-#define DMCM_AARSIZE16   (AARSIZE16  << 20)
-#define DMCM_AARSIZE32   (AARSIZE32  << 20)
-#define DMCM_AARSIZE64   (AARSIZE64  << 20)
-#define DMCM_AARSIZE128  (AARSIZE128 << 20)
+#define DMCM_AARSIZE(s)  (AARSIZE##s << 20)
 
 typedef union {
   uint32_t raw;
@@ -312,22 +307,32 @@ inline dm_command dm_get_command(void) {
 
 #define DM_ABSTRACTAUTO  PIO_ADDR(0x18)  // 0xCE
 
-#define DM_AUTOEXECDATA(b)  ((b) & 0xFFF)
-#define DM_AUTOEXECPROG(b)  (((b) & 0xFF) << 16)
+#define DMAA_DATA(n)  (1 << (n))
+#define DMAA_DATA0    DMAA_DATA(0)
+#define DMAA_DATA1    DMAA_DATA(1)
+
+#define DMAA_PROGBUF(n)  (1 << ((n) + 16))
+#define DMAA_PROGBUF0    DMAA_PROGBUF(0)
+#define DMAA_PROGBUF1    DMAA_PROGBUF(1)
+#define DMAA_PROGBUF2    DMAA_PROGBUF(2)
+#define DMAA_PROGBUF3    DMAA_PROGBUF(3)
+#define DMAA_PROGBUF4    DMAA_PROGBUF(4)
+#define DMAA_PROGBUF5    DMAA_PROGBUF(5)
+#define DMAA_PROGBUF6    DMAA_PROGBUF(6)
+#define DMAA_PROGBUF7    DMAA_PROGBUF(7)
 
 typedef union {
   uint32_t raw;
   struct {
-    uint32_t AUTOEXECDATA : 12; // [11:0]
-    uint32_t PAD0         : 4;  // [15:12]
-    uint32_t AUTOEXECPROG : 8;  // [23:16]  NOTE: V2 series design 8 progbuf, corresponding to bits [23:16]
-    uint32_t PAD1         : 8;  // [31:24]
+    uint32_t AUTOEXECDATA    : 12; // [11:0]
+    uint32_t PAD             : 4;  // [15:12]
+    uint32_t AUTOEXECPROGBUF : 16; // [31:16]
   } b;
 } dm_abstractauto;
 
 _Static_assert(sizeof(dm_abstractauto) == 4, "dm_abstractauto");
 
-void dm_abstractauto_dump(dm_abstractauto r);
+void dm_abstractauto_dump(dm_abstractauto r, uint8_t dcount, uint8_t pbcount);
 
 inline void dm_set_abstractauto(uint32_t value) {
   swio_put(DM_ABSTRACTAUTO, value); }
@@ -340,17 +345,17 @@ inline dm_abstractauto dm_get_abstractauto(void) {
 //------------------------------------------------------------------------------
 // Instruction cache registers 0-7
 
-#define DM_PROGBUF0    PIO_ADDR(0x20)  // 0xBE
-#define DM_PROGBUF1    PIO_ADDR(0x21)  // 0xBC
-#define DM_PROGBUF2    PIO_ADDR(0x22)  // 0xBA
-#define DM_PROGBUF3    PIO_ADDR(0x23)  // 0xB8
-#define DM_PROGBUF4    PIO_ADDR(0x24)  // 0xB6
-#define DM_PROGBUF5    PIO_ADDR(0x25)  // 0xB4
-#define DM_PROGBUF6    PIO_ADDR(0x26)  // 0xB2
-#define DM_PROGBUF7    PIO_ADDR(0x27)  // 0xB0
+#define DM_PROGBUFMAX  16  // RISCV-debug spec
+#define DM_PROGBUF(n)  (PIO_ADDR(0x20) - (n) * 2)
 
-#define DM_PROGBUFMAX  16              // RISCV-debug spec
-#define DM_PROGBUF(n)  (DM_PROGBUF0 - (n) * 2)
+#define DM_PROGBUF0  DM_PROGBUF(0)  // 0xBE
+#define DM_PROGBUF1  DM_PROGBUF(1)  // 0xBC
+#define DM_PROGBUF2  DM_PROGBUF(2)  // 0xBA
+#define DM_PROGBUF3  DM_PROGBUF(3)  // 0xB8
+#define DM_PROGBUF4  DM_PROGBUF(4)  // 0xB6
+#define DM_PROGBUF5  DM_PROGBUF(5)  // 0xB4
+#define DM_PROGBUF6  DM_PROGBUF(6)  // 0xB2
+#define DM_PROGBUF7  DM_PROGBUF(7)  // 0xB0
 
 void dm_progbuf_dump(size_t count);
 
@@ -362,7 +367,7 @@ inline uint32_t dm_get_progbuf(uint8_t i) { return swio_get(DM_PROGBUF(i)); }
 
 #define DM_HALTSUM0  PIO_ADDR(0x40)  // 0x7E
 
-inline uint32_t dm_get_haltsum0(void) { return swio_get(DM_HALTSUM0); }
+inline bool dm_get_haltsum0(void) { return swio_get(DM_HALTSUM0); }
 
 //------------------------------------------------------------------------------
 // Capability Register

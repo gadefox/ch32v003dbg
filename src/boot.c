@@ -2,6 +2,7 @@
 
 #include "boot.h"
 #include "flash.h"
+#include "utils.h"
 
 //------------------------------------------------------------------------------
 
@@ -37,6 +38,10 @@ int boot_unlock(void) {
 // Dumps flash regs and the first 768 bytes of bootloader area.
 
 void boot_dump(uint32_t addr) {
+  flash_statr statr;
+  if (flash_get_statr(&statr))
+    print_lock(statr.b.BOOT_LOCK);
+
   ctx_dump_block(addr, BOOT_ADDR, BOOT_SIZE);
 }
 

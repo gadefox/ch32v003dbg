@@ -3,8 +3,8 @@
 #include <pico/time.h>
 
 #include "flash.h"
-#include "utils.h"
 #include "xmodem.h"
+#include "utils.h"
 
 //------------------------------------------------------------------------------
 
@@ -139,7 +139,7 @@ static int xmodem_handle_block(void) {
     if (result != -1) {
       // Flash firmware
       if (!erase_flash_verify()) {
-        cled_set_color(CLED_CYAN);
+        cled_set_color(CLED_RED);
         state = CANCEL;
         return CAN;
       }
@@ -156,7 +156,7 @@ static int xmodem_handle_block(void) {
   retry_cnt++;
   if (retry_cnt >= MAX_RETRIES) {
     // Too many retries: abort
-    cled_set_color(CLED_RED);
+    cled_set_color(CLED_CYAN);
     state = CANCEL;
     return CAN;
   }
