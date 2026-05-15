@@ -1,0 +1,3 @@
+#!/bin/rc
+
+picotool load -x out/ch32v003dbg.uf2
